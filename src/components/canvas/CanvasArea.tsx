@@ -75,7 +75,7 @@ const CanvasArea = ({
       style={{
         backgroundImage: isOver
           ? "none"
-          : "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
+          : "linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)",
         backgroundSize: "20px 20px",
       }}
       onMouseDown={(e) => {
@@ -123,7 +123,7 @@ const CanvasArea = ({
         data-dy={dragPointer?.y ?? 0}
       >
         <defs>
-          <marker id="bw-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <marker id="bw-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
             <path d="M0,0 L10,5 L0,10 Z" fill="#2563eb" />
           </marker>
         </defs>
@@ -136,14 +136,12 @@ const CanvasArea = ({
           const a = portCenter(e.fromId);
           const b = portCenter(e.toId);
           return (
-            <line
+            <path
               key={e.id}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
+              d={`M ${a.x} ${a.y} C ${a.x + 50} ${a.y}, ${b.x - 50} ${b.y}, ${b.x} ${b.y}`}
               stroke="#2563eb"
               strokeWidth="2"
+              fill="none"
               strokeLinecap="round"
               markerEnd="url(#bw-arrow)"
             />
@@ -154,8 +152,14 @@ const CanvasArea = ({
           const a = portCenter(connectFrom);
           const b = previewPoint();
           return (
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-              stroke="#94a3b8" strokeDasharray="6 4" strokeWidth="2" strokeLinecap="round" />
+            <path
+              d={`M ${a.x} ${a.y} C ${a.x + 50} ${a.y}, ${b.x - 50} ${b.y}, ${b.x} ${b.y}`}
+              stroke="#94a3b8" 
+              strokeDasharray="6 4"
+              strokeWidth="2"
+              strokeLinecap="round"
+              fill="none"
+            />
           );
         })()}
       </svg>

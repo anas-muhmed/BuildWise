@@ -57,8 +57,8 @@ const DroppedBlock = ({
         e.stopPropagation();
         onSelect?.(id);
       }}
-      className={`absolute group bg-white border rounded-md shadow text-sm font-semibold 
-                  flex items-center justify-between
+      className={`absolute group bg-white border-2 rounded-lg shadow-md text-sm font-semibold 
+                  flex items-center justify-between px-4 py-2
                   ${selected ? "border-blue-500 ring-2 ring-blue-300" : "border-gray-300 text-gray-700"}`}
     >
       {/* Drag handle — disabled while a connection is pending */}
@@ -86,11 +86,9 @@ const DroppedBlock = ({
           e.stopPropagation();
           if (hasPendingConnection) onFinishConnect?.(id);
         }}
-        className={`w-4 h-4 mr-2 rounded-full border outline-none
-          ${connected ? "bg-blue-600 border-blue-600" :
-            isConnectSource ? "bg-blue-600 border-blue-600" :
-            "bg-white border-gray-400"}
-          focus:ring-2 focus:ring-blue-300`}
+        className={`w-3 h-3 ml-auto rounded-full border-2 outline-none
+          ${connected || isConnectSource ? "border-blue-500 bg-blue-500" : "border-blue-500 bg-white hover:bg-blue-500"}
+          transition focus:ring-2 focus:ring-blue-300`}
         title={isConnectSource ? "Select target…" : "Connect from here"}
       />
     </div>
