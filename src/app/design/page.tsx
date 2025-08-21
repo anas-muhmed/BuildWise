@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -12,12 +12,20 @@ import {
 } from "@dnd-kit/core";
 import ComponentPallete from "@/components/canvas/ComponentPallete";
 import CanvasArea from "@/components/canvas/CanvasArea";
+import ConfigModal from "@/components/canvas/ConfigModal";
 
 interface DroppedComponent {
   id: string;   // instance id
   type: string; // palette type
   x: number;
   y: number;
+  config?: {
+    name?: string;
+    tech?: string;
+    notes?: string;
+    cpu?: string;
+    ram?: string;
+  };
 }
 type Edge = { id: string; fromId: string; toId: string };
 
@@ -30,6 +38,13 @@ export default function DesignPage() {
 
   const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  
+  // Configuration modal state
+  const [editId, setEditId] = useState<string | null>(null);
+  const editingBlock = useMemo(
+    () => droppedComponents.find(b => b.id === editId) || null,
+    [editId, droppedComponents]
+  );
 
   // overlay + precise pointer
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -145,6 +160,18 @@ export default function DesignPage() {
     setIsConnecting(false);
     setConnectFrom(null);
   };
+  
+  // Configuration functions
+  const openConfig = (id: string) => setEditId(id);
+  const closeConfig = () => setEditId(null);
+
+  const saveConfig = (data: DroppedComponent["config"]) => {
+    if (!editId) return;
+    setDroppedComponents(prev =>
+      prev.map(b => b.id === editId ? { ...b, config: { ...b.config, ...data } } : b)
+    );
+    setEditId(null);
+  };
 
   if (!mounted) {
     return (
@@ -174,6 +201,7 @@ export default function DesignPage() {
             onCancelConnect={cancelConnect}
             dragPointer={isDragging ? mousePos : undefined}
             canvasRef={canvasRef}
+            onOpenConfig={openConfig}
           />
         </div>
 
@@ -185,6 +213,15 @@ export default function DesignPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      
+      {/* Configuration Modal */}
+      <ConfigModal
+        open={!!editId}
+        onOpenChange={(v) => (v ? null : closeConfig())}
+        initial={editingBlock?.config}
+        onSave={saveConfig}
+        blockTitle={editingBlock?.type}
+      />
     </main>
   );
 }

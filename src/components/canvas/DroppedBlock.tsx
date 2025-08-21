@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useDraggable } from "@dnd-kit/core";
+import { Settings } from "lucide-react";
 
 interface DroppedBlockProps {
   id: string; // instance id
@@ -18,6 +19,16 @@ interface DroppedBlockProps {
   hasPendingConnection?: boolean; // ⬅️ NEW: there is some source selected
   isConnecting?: boolean; // Indicates if a connection is in progress
   connected?: boolean; // NEW: is this port connected by any edge?
+  
+  // configuration
+  onOpenConfig?: (id: string) => void; // Open configuration modal
+  config?: {
+    name?: string;
+    tech?: string;
+    notes?: string;
+    cpu?: string;
+    ram?: string;
+  };
 }
 
 const DroppedBlock = ({
@@ -32,6 +43,8 @@ const DroppedBlock = ({
   isConnectSource,
   hasPendingConnection,
   connected,
+  onOpenConfig,
+  config,
 }: DroppedBlockProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
@@ -69,28 +82,49 @@ const DroppedBlock = ({
         className={`h-full px-3 ${hasPendingConnection ? "cursor-default" : "cursor-grab"} rounded-l-md hover:bg-gray-50 select-none`}
         title={hasPendingConnection ? "Connecting…" : "Drag to move"}
       >
-        {type.toUpperCase()}
+        {(config?.name || type).toUpperCase()}
       </button>
 
-      {/* Port: if a source exists → finish; else → begin */}
-      <button
-        data-port-id={id}
-        type="button"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!hasPendingConnection) onBeginConnect?.(id);
-        }}
-        onPointerUp={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (hasPendingConnection) onFinishConnect?.(id);
-        }}
-        className={`w-3 h-3 ml-auto rounded-full border-2 outline-none
-          ${connected || isConnectSource ? "border-blue-500 bg-blue-500" : "border-blue-500 bg-white hover:bg-blue-500"}
-          transition focus:ring-2 focus:ring-blue-300`}
-        title={isConnectSource ? "Select target…" : "Connect from here"}
-      />
+      {/* Right-side: gear + port container */}
+      <div className="flex items-center gap-2">
+        {/* Gear to open modal */}
+        <button
+          type="button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onOpenConfig?.(id); }}
+          className="p-1 rounded-md hover:bg-slate-50 text-slate-600"
+          title="Configure"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+
+        {/* Port: if a source exists → finish; else → begin */}
+        <button
+          data-port-id={id}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!hasPendingConnection) onBeginConnect?.(id);
+          }}
+          onPointerUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (hasPendingConnection) onFinishConnect?.(id);
+          }}
+          className={`w-3 h-3 ml-auto rounded-full border-2 outline-none
+            ${connected || isConnectSource ? "border-blue-500 bg-blue-500" : "border-blue-500 bg-white hover:bg-blue-500"}
+            transition focus:ring-2 focus:ring-blue-300`}
+          title={isConnectSource ? "Select target…" : "Connect from here"}
+        />
+      </div>
+
+      {/* Optional tech stack sublabel */}
+      {config?.tech && (
+        <div className="absolute -bottom-5 left-0 text-[10px] text-slate-500 max-w-[120px] truncate">
+          {config.tech}
+        </div>
+      )}
     </div>
   );
 };

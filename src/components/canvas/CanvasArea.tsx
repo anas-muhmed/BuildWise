@@ -3,12 +3,20 @@
 import React from "react";
 import { useDroppable } from "@dnd-kit/core";
 import DroppedBlock from "./DroppedBlock";
+import { getEdgeColor } from "@/lib/helpers";
 
 interface DroppedComponent {
   id: string;
   type: string;
   x: number;
   y: number;
+  config?: {
+    name?: string;
+    tech?: string;
+    notes?: string;
+    cpu?: string;
+    ram?: string;
+  };
 }
 
 type Edge = { id: string; fromId: string; toId: string };
@@ -26,6 +34,7 @@ interface CanvasAreaProps {
   onCancelConnect: () => void;
   dragPointer?: { x: number; y: number };
   canvasRef: React.RefObject<HTMLDivElement | null>; // Allow null
+  onOpenConfig: (id: string) => void; // Add config modal opener
 }
 
 const CanvasArea = ({
@@ -41,8 +50,14 @@ const CanvasArea = ({
   onCancelConnect,
   dragPointer,
   canvasRef,
+  onOpenConfig,
 }: CanvasAreaProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: "canvas-dropzone" });
+
+  // Using a straight line instead of a curve
+  const straightLine = (a:{x:number,y:number}, b:{x:number,y:number}) => {
+    return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+  };
 
   // Use ref for all DOM queries
   const getCanvasRect = () => canvasRef.current?.getBoundingClientRect();
@@ -58,6 +73,22 @@ const CanvasArea = ({
 
   // preview is already in canvas coords
   const previewPoint = () => ({ x: preview.x, y: preview.y });
+  
+  const isNearTarget = () => {
+    if (!connectFrom || !canvasRef.current) return false;
+    const b = previewPoint();
+    // 14px radius snap to any port except source
+    const ports = Array.from((canvasRef.current).querySelectorAll("[data-port-id]")) as HTMLElement[];
+    return ports.some(p => {
+      const id = p.getAttribute("data-port-id");
+      if (id === connectFrom) return false;
+      const r = p.getBoundingClientRect();
+      const cr = canvasRef.current!.getBoundingClientRect();
+      const cx = r.left - cr.left + r.width/2;
+      const cy = r.top - cr.top + r.height/2;
+      return Math.hypot(cx - b.x, cy - b.y) < 14;
+    });
+  };
 
   return (
     <div
@@ -69,13 +100,12 @@ const CanvasArea = ({
         }
       }}
       data-canvas="true"
-      className={`relative flex-1 h-[calc(100vh-180px)] bg-white rounded-xl border-2 shadow-md transition-colors ${
-        isOver ? "border-blue-400 bg-blue-50" : "border-dashed border-gray-400"
-      }`}
+      className={`relative flex-1 h-[calc(100vh-180px)] bg-white rounded-2xl
+        border ${isOver ? "border-blue-400 bg-blue-50" : "border-dashed border-slate-300"} shadow-sm`}
       style={{
         backgroundImage: isOver
           ? "none"
-          : "linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)",
+          : "linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)",
         backgroundSize: "20px 20px",
       }}
       onMouseDown={(e) => {
@@ -107,6 +137,8 @@ const CanvasArea = ({
               hasPendingConnection={!!connectFrom}
               isConnecting={isConnecting}
               connected={connected}
+              onOpenConfig={onOpenConfig}
+              config={c.config}
             />
           );
         })}
@@ -122,44 +154,80 @@ const CanvasArea = ({
         data-dx={dragPointer?.x ?? 0}
         data-dy={dragPointer?.y ?? 0}
       >
-        <defs>
-          <marker id="bw-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-            <path d="M0,0 L10,5 L0,10 Z" fill="#2563eb" />
-          </marker>
-        </defs>
+        {/* We'll create markers dynamically for each edge */}
         {/* DEBUG: show port centers */}
         {droppedComponents.map((c) => {
           const p = portCenter(c.id);
           return <circle key={`dbg-${c.id}`} cx={p.x} cy={p.y} r={2.5} fill="#ef4444" />;
         })}
-        {edges.map((e) => {
-          const a = portCenter(e.fromId);
-          const b = portCenter(e.toId);
+        
+        {/* Center cache for performance */}
+        {(() => {
+          const centerCache = new Map<string, {x: number, y: number}>();
+          const center = (id: string) => {
+            if (!centerCache.has(id)) centerCache.set(id, portCenter(id));
+            return centerCache.get(id)!;
+          };
+          
           return (
-            <path
-              key={e.id}
-              d={`M ${a.x} ${a.y} C ${a.x + 50} ${a.y}, ${b.x - 50} ${b.y}, ${b.x} ${b.y}`}
-              stroke="#2563eb"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-              markerEnd="url(#bw-arrow)"
-            />
-          );
-        })}
-        {/* rubber-band preview */}
-        {isConnecting && connectFrom && (() => {
-          const a = portCenter(connectFrom);
-          const b = previewPoint();
-          return (
-            <path
-              d={`M ${a.x} ${a.y} C ${a.x + 50} ${a.y}, ${b.x - 50} ${b.y}, ${b.x} ${b.y}`}
-              stroke="#94a3b8" 
-              strokeDasharray="6 4"
-              strokeWidth="2"
-              strokeLinecap="round"
-              fill="none"
-            />
+            <>
+              {edges.map((e) => {
+                const a = center(e.fromId);
+                const b = center(e.toId);
+                
+                // Find source block to determine color
+                const sourceBlock = droppedComponents.find(c => c.id === e.fromId);
+                const color = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
+                
+                // Create a marker with the correct color
+                const markerId = `arrow-${sourceBlock?.type || "default"}`;
+                
+                return (
+                  <React.Fragment key={e.id}>
+                    <defs>
+                      <marker id={markerId} viewBox="0 0 10 10" refX="8" refY="5" 
+                              markerWidth="5" markerHeight="5" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 Z" fill={color} />
+                      </marker>
+                    </defs>
+                    <path
+                      d={straightLine(a, b)}
+                      stroke={color}
+                      strokeWidth="2"
+                      fill="none"
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                      markerEnd={`url(#${markerId})`}
+                      className="drop-shadow-sm"
+                    />
+                  </React.Fragment>
+                );
+              })}
+              
+              {/* rubber-band preview */}
+              {isConnecting && connectFrom && (() => {
+                const a = center(connectFrom);
+                const b = previewPoint();
+                const willSnap = isNearTarget();
+                
+                // Find source block to determine color
+                const sourceBlock = droppedComponents.find(c => c.id === connectFrom);
+                const baseColor = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
+                const color = willSnap ? baseColor : "#64748b";
+                
+                return (
+                  <path 
+                    d={straightLine(a, b)}
+                    stroke={color}
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                    fill="none" 
+                    strokeLinecap="round" 
+                    vectorEffect="non-scaling-stroke" 
+                  />
+                );
+              })()}
+            </>
           );
         })()}
       </svg>
