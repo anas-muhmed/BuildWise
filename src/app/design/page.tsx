@@ -10,9 +10,40 @@ import {
   DragEndEvent,
   DragOverlay,
 } from "@dnd-kit/core";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import ComponentPallete from "@/components/canvas/ComponentPallete";
 import CanvasArea from "@/components/canvas/CanvasArea";
 import ConfigModal from "@/components/canvas/ConfigModal";
+
+
+const STORAGE_KEY="bw:v1:design";
+
+type DesignState = {
+  droppedComponents: {
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    config?: {
+      name?: string;
+      tech?: string;
+      notes?: string;
+      cpu?: string;
+      ram?: string;
+    };
+  }[];
+  edges: { id: string; fromId: string; toId: string }[];
+  viewport?: { x: number; y: number; zoom: number }; // For later use
+};
+
+// Helper function to prevent too many saves happening at once
+function debounce<T extends (...args: any[]) => void>(fn: T, ms = 400) {
+  let t: any;
+  return (...args: Parameters<T>) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
 
 interface DroppedComponent {
   id: string;   // instance id
@@ -38,13 +69,11 @@ export default function DesignPage() {
 
   const [droppedComponents, setDroppedComponents] = useState<DroppedComponent[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  
-  // Configuration modal state
-  const [editId, setEditId] = useState<string | null>(null);
-  const editingBlock = useMemo(
-    () => droppedComponents.find(b => b.id === editId) || null,
-    [editId, droppedComponents]
-  );
+  const[autoSave,setAutoSave]=useState(true);//Auto-Save toggle
+
+  // AI functionality state  
+const [aiLoading, setAiLoading] = useState(false);
+const [aiResults, setAiResults] = useState<any>(null);
 
   // overlay + precise pointer
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -58,6 +87,97 @@ export default function DesignPage() {
   const [preview, setPreview] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+    //save current design to localstorage
+ const saveNow=React.useCallback(()=>{
+  const payload = {
+    meta: {
+      version: "1.0",
+      savedAt: new Date().toISOString(), // current time
+    },
+    droppedComponents,
+    edges,
+    // viewport (later)
+  };
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    console.log("Design saved at", payload.meta.savedAt);
+  }catch(err){
+    console.error("failed to save:", err);
+  }
+},[droppedComponents,edges]);
+
+  //debounced autosave
+  const debouncedSave=React.useMemo(()=>debounce(saveNow,500),[saveNow]);
+  
+  //load last saved design
+  const loadNow=React.useCallback(()=>{
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(!raw){
+        console.log('no saved design found');
+        return;
+      }
+      const parsed:DesignState=JSON.parse(raw);
+      setDroppedComponents(parsed.droppedComponents??[]);
+      setEdges(parsed.edges ??[]);
+      setSelectedId(null);
+      console.log("Design loaded");
+    }catch(err){
+      console.error("failed to load:",err);
+    }
+  },[])
+  //AI suggestion Function
+  const handleGetSuggestions=React.useCallback(async()=>{
+    try{
+      //Step 1:Start Loading
+      setAiLoading(true);
+
+      //Step 2:Prepare canvas data to send
+      const canvasData={
+        droppedComponents,
+        edges,
+      };
+
+      //Step 3:Call our mock AI API
+      const response=await fetch('/api/mock-ai',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+        },
+        body:JSON.stringify(canvasData),
+      });
+
+      //Step 4:get the response
+      const data=await response.json();
+
+      //Step 5:Store the results
+      setAiResults(data);
+
+      console.log('AI analysis complted->',data);
+    }catch(err){
+      console.error('Ai Analysis failed->',err);
+    }finally{
+      //Step 6:always stops loading(even if theres an error)
+      setAiLoading(false);
+    }
+  },[droppedComponents,edges]);
+
+  // Configuration modal state
+  const [editId, setEditId] = useState<string | null>(null);
+  const editingBlock = useMemo(
+    () => droppedComponents.find(b => b.id === editId) || null,
+    [editId, droppedComponents]
+  );
+
+  //New(clear canvas)
+  const newCanvas=React.useCallback(()=>{
+    setDroppedComponents([]);
+    setEdges([]);
+    setSelectedId(null);
+    console.log("Canvas Cleared");
+  },[]);
+
 
   // track mouse while dragging (precise drop)
   useEffect(() => {
@@ -87,6 +207,9 @@ export default function DesignPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedId]);
 
+
+ 
+  
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id)); // palette type OR instance id
     setIsDragging(true);
@@ -172,6 +295,18 @@ export default function DesignPage() {
     );
     setEditId(null);
   };
+   
+  //Load once on mount(if something exist)
+  useEffect(()=>{
+    if(!mounted) return;
+    loadNow();
+  },[mounted,loadNow]);
+  
+
+  useEffect(()=>{
+    if(!mounted||!autoSave)return;
+    debouncedSave();
+  },[mounted,autoSave,droppedComponents,edges,debouncedSave]);
 
   if (!mounted) {
     return (
@@ -183,7 +318,144 @@ export default function DesignPage() {
 
   return (
     <main className="flex flex-col h-full w-full p-6">
-      <h1 className="text-2xl font-bold mb-4 text-gray-800">🧠 Start New Design</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">🧠 Start New Design</h1>
+        
+        {/* Enhanced Toolbar */}
+        <div className="flex items-center gap-4 bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-2">
+          {/* Primary Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={saveNow}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+            >
+              💾 Save
+            </button>
+            <button
+              onClick={loadNow}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+            >
+              📂 Load
+            </button>
+            <button
+              onClick={newCanvas}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+            >
+              ✨ New
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-200"></div>
+
+          {/* Auto-save Toggle */}
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={autoSave}
+                onChange={(e) => setAutoSave(e.target.checked)}
+              />
+              <div className={`w-10 h-5 rounded-full transition-colors ${autoSave ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${autoSave ? 'translate-x-5' : 'translate-x-0.5'} mt-0.5`}></div>
+              </div>
+            </div>
+            Auto-save
+          </label>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-200"></div>
+          
+          {/* AI Analysis Section */}
+          <div className="flex items-center gap-2">
+           <button
+  onClick={handleGetSuggestions} // We'll improve this next
+  disabled={aiLoading}
+  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium text-sm ${
+    aiLoading 
+      ? 'bg-gray-400 text-white cursor-not-allowed' 
+      : 'bg-purple-600 text-white hover:bg-purple-700'
+  }`}
+> {aiLoading ? '⏳ Analyzing...' : '🤖 Get Suggestions'}</button>
+          </div>
+
+          {/* Import/Export Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const payload: DesignState = { droppedComponents, edges };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "buildwise-design.json";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+            >
+              📤 Export
+            </button>
+
+            <label className="flex items-center gap-2 px-3 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm cursor-pointer">
+              📥 Import
+              <input
+                type="file"
+                accept="application/json"
+                hidden
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const parsed: DesignState = JSON.parse(text);
+                    setDroppedComponents(parsed.droppedComponents ?? []);
+                    setEdges(parsed.edges ?? []);
+                    setSelectedId(null);
+                    console.log("Design imported from JSON");
+                  } catch (err) {
+                    console.error("Failed to import JSON:", err);
+                  } finally {
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+       
+       {/* AI Results Display */}
+{aiResults && (
+  <Card className="mb-6 max-w-md">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        🤖 AI Analysis Results
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="mb-4">
+        <span className="font-semibold">Health Score: </span>
+        <span className="text-lg font-bold text-green-600">
+          {aiResults.healthScore}/100
+        </span>
+      </div>
+      <div>
+        <h4 className="font-semibold mb-2 flex items-center gap-1">
+          💡 Suggestions:
+        </h4>
+        <ul className="list-disc pl-6 space-y-1">
+          {aiResults.suggestions.map((suggestion, idx) => (
+            <li key={idx} className="text-gray-700 text-sm">
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </CardContent>
+  </Card>
+)}
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex w-full h-full">
@@ -207,8 +479,15 @@ export default function DesignPage() {
 
         <DragOverlay>
           {activeId ? (
-            <div className="px-4 py-2 bg-white border rounded-md shadow text-sm font-semibold text-gray-700 z-[9999]">
-              {activeId.split("-")[0].toUpperCase()}
+            <div className="px-4 py-2 bg-white border rounded-md shadow text-sm font-semibold text-gray-700 text-center">
+              <div className="text-base font-semibold uppercase">
+                {droppedComponents.find(block => block.id === activeId)?.config?.name || activeId.split("-")[0].toUpperCase()}
+              </div>
+              {droppedComponents.find(block => block.id === activeId)?.config?.tech && (
+                <div className="text-xs text-gray-500 italic mt-0.5">
+                  {droppedComponents.find(block => block.id === activeId)?.config?.tech}
+                </div>
+              )}
             </div>
           ) : null}
         </DragOverlay>

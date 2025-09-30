@@ -58,10 +58,38 @@ const CanvasArea = ({
   const straightLine = (a:{x:number,y:number}, b:{x:number,y:number}) => {
     return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
   };
+  
 
-  // Use ref for all DOM queries
+  const [selectedEdge,setSelectedEdge]=React.useState<string|null>(null);
+  // --- PAN STATE ---
+  const [pan, setPan] = React.useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = React.useState(false);
+  const panStart = React.useRef<{ x: number; y: number } | null>(null);
+
+  // Global listeners
+  React.useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!isPanning || !panStart.current) return;
+      setPan({
+        x: e.clientX - panStart.current.x,
+        y: e.clientY - panStart.current.y,
+      });
+    };
+
+    const handleUp = () => setIsPanning(false);
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [isPanning]); // 🚨 only depend on isPanning
+
+  // Get canvas bounding rect
   const getCanvasRect = () => canvasRef.current?.getBoundingClientRect();
 
+  // Get port center position
   const portCenter = (id: string) => {
     if (!canvasRef.current) return { x: 0, y: 0 }; // Guard for undefined canvasRef.current
     const port = canvasRef.current.querySelector(`[data-port-id="${id}"]`) as HTMLElement | null;
@@ -114,123 +142,146 @@ const CanvasArea = ({
             onCancelConnect();
           } else {
             onSelect(null);
+            setSelectedEdge(null);
+
+            // 👇 Start panning with left mouse button
+            if (e.button === 0) {
+              setIsPanning(true);
+              panStart.current = {
+                x: e.clientX - pan.x,
+                y: e.clientY - pan.y,
+              };
+            }
           }
         }
       }}
     >
-      {/* Blocks layer (z-10) */}
-      <div className="absolute inset-0 z-10">
-        {droppedComponents.map((c) => {
-          const connected = edges.some(e => e.fromId === c.id || e.toId === c.id);
-          return (
-            <DroppedBlock
-              key={c.id}
-              id={c.id}
-              type={c.type}
-              x={c.x}
-              y={c.y}
-              selected={selectedId === c.id}
-              onSelect={onSelect}
-              onBeginConnect={onBeginConnect}
-              onFinishConnect={onFinishConnect}
-              isConnectSource={connectFrom === c.id}
-              hasPendingConnection={!!connectFrom}
-              isConnecting={isConnecting}
-              connected={connected}
-              onOpenConfig={onOpenConfig}
-              config={c.config}
-            />
-          );
-        })}
-      </div>
-
-      {/* SVG edges ABOVE blocks (z-20) */}
-      <svg
-        className="absolute inset-0 z-20 pointer-events-none"
-        width="100%"               
-        height="100%"              
-        preserveAspectRatio="none" 
-        style={{ overflow: "visible" }}
-        data-dx={dragPointer?.x ?? 0}
-        data-dy={dragPointer?.y ?? 0}
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px)`,
+          transition: isPanning ? "none" : "transform 0.05s linear",
+        }}
       >
-        {/* We'll create markers dynamically for each edge */}
-        {/* DEBUG: show port centers */}
-        {droppedComponents.map((c) => {
-          const p = portCenter(c.id);
-          return <circle key={`dbg-${c.id}`} cx={p.x} cy={p.y} r={2.5} fill="#ef4444" />;
-        })}
-        
-        {/* Center cache for performance */}
-        {(() => {
-          const centerCache = new Map<string, {x: number, y: number}>();
-          const center = (id: string) => {
-            if (!centerCache.has(id)) centerCache.set(id, portCenter(id));
-            return centerCache.get(id)!;
-          };
+        {/* Blocks layer (z-10) */}
+        <div className="absolute inset-0 z-10">
+          {droppedComponents.map((c) => {
+            const connected = edges.some(e => e.fromId === c.id || e.toId === c.id);
+            return (
+              <DroppedBlock
+                key={c.id}
+                id={c.id}
+                type={c.type}
+                x={c.x}
+                y={c.y}
+                selected={selectedId === c.id}
+                onSelect={onSelect}
+                onBeginConnect={onBeginConnect}
+                onFinishConnect={onFinishConnect}
+                isConnectSource={connectFrom === c.id}
+                hasPendingConnection={!!connectFrom}
+                isConnecting={isConnecting}
+                connected={connected}
+                onOpenConfig={onOpenConfig}
+                config={c.config}
+              />
+            );
+          })}
+        </div>
+
+        {/* SVG edges ABOVE blocks (z-20) */}
+        <svg
+          className="absolute inset-0 z-20 pointer-events-none"
+          width="100%"               
+          height="100%"              
+          preserveAspectRatio="none" 
+          style={{ overflow: "visible" }}
+          data-dx={dragPointer?.x ?? 0}
+          data-dy={dragPointer?.y ?? 0}
+        >
+          {/* We'll create markers dynamically for each edge */}
+          {/* DEBUG: show port centers */}
+          {droppedComponents.map((c) => {
+            const p = portCenter(c.id);
+            return <circle key={`dbg-${c.id}`} cx={p.x} cy={p.y} r={2.5} fill="#ef4444" />;
+          })}
           
-          return (
-            <>
-              {edges.map((e) => {
-                const a = center(e.fromId);
-                const b = center(e.toId);
+          {/* Center cache for performance */}
+          {(() => {
+            const centerCache = new Map<string, {x: number, y: number}>();
+            const center = (id: string) => {
+              if (!centerCache.has(id)) centerCache.set(id, portCenter(id));
+              return centerCache.get(id)!;
+            };
+            
+            return (
+              <>
+                {edges.map((e) => {
+                  const a = center(e.fromId);
+                  const b = center(e.toId);
+                  
+                  // Find source block to determine color
+                  const sourceBlock = droppedComponents.find(c => c.id === e.fromId);
+                  const color = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
+                  
+                  const isSelected=selectedEdge===e.id;
+
+
+                  // Create a marker with the correct color
+                  const markerId = `arrow-${sourceBlock?.type || "default"}`;
+                  
+                  return (
+                    <React.Fragment key={e.id}>
+                      <defs>
+                        <marker id={markerId} viewBox="0 0 10 10" refX="8" refY="5" 
+                                markerWidth="5" markerHeight="5" orient="auto">
+                          <path d="M0,0 L10,5 L0,10 Z" fill={color} />
+                        </marker>
+                      </defs>
+                      <path
+                        d={straightLine(a, b)}
+                        stroke={isSelected?"#2563eb":color}
+                        strokeWidth={isSelected?"3":"2"}
+                        fill="none"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                        markerEnd={`url(#${markerId})`}
+                        className="cursor-pointer"
+                        onClick={()=>setSelectedEdge(e.id)}
+                        style={{pointerEvents:"all"}}
+                      />
+                    </React.Fragment>
+                  );
+                })}
                 
-                // Find source block to determine color
-                const sourceBlock = droppedComponents.find(c => c.id === e.fromId);
-                const color = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
-                
-                // Create a marker with the correct color
-                const markerId = `arrow-${sourceBlock?.type || "default"}`;
-                
-                return (
-                  <React.Fragment key={e.id}>
-                    <defs>
-                      <marker id={markerId} viewBox="0 0 10 10" refX="8" refY="5" 
-                              markerWidth="5" markerHeight="5" orient="auto">
-                        <path d="M0,0 L10,5 L0,10 Z" fill={color} />
-                      </marker>
-                    </defs>
-                    <path
+                {/* rubber-band preview */}
+                {isConnecting && connectFrom && (() => {
+                  const a = center(connectFrom);
+                  const b = previewPoint();
+                  const willSnap = isNearTarget();
+                  
+                  // Find source block to determine color
+                  const sourceBlock = droppedComponents.find(c => c.id === connectFrom);
+                  const baseColor = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
+                  const color = willSnap ? baseColor : "#64748b";
+                  
+                  return (
+                    <path 
                       d={straightLine(a, b)}
                       stroke={color}
-                      strokeWidth="2"
-                      fill="none"
-                      strokeLinecap="round"
-                      vectorEffect="non-scaling-stroke"
-                      markerEnd={`url(#${markerId})`}
-                      className="drop-shadow-sm"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 3"
+                      fill="none" 
+                      strokeLinecap="round" 
+                      vectorEffect="non-scaling-stroke" 
                     />
-                  </React.Fragment>
-                );
-              })}
-              
-              {/* rubber-band preview */}
-              {isConnecting && connectFrom && (() => {
-                const a = center(connectFrom);
-                const b = previewPoint();
-                const willSnap = isNearTarget();
-                
-                // Find source block to determine color
-                const sourceBlock = droppedComponents.find(c => c.id === connectFrom);
-                const baseColor = sourceBlock ? getEdgeColor(sourceBlock.type) : "#4b5563";
-                const color = willSnap ? baseColor : "#64748b";
-                
-                return (
-                  <path 
-                    d={straightLine(a, b)}
-                    stroke={color}
-                    strokeWidth="1.5"
-                    strokeDasharray="4 3"
-                    fill="none" 
-                    strokeLinecap="round" 
-                    vectorEffect="non-scaling-stroke" 
-                  />
-                );
-              })()}
-            </>
-          );
-        })()}
-      </svg>
+                  );
+                })()}
+              </>
+            );
+          })()}
+        </svg>
+      </div>
 
       {droppedComponents.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
