@@ -9,6 +9,13 @@ import React from "react";
 
 const features = [
 	{
+		title: "AI Architecture Designer",
+		href: "/generative-ai",
+		icon: <Sparkles className="h-6 w-6 text-purple-600" />,
+		description:
+			"Generate professional system architectures with AI explanations.",
+	},
+	{
 		title: "Start New Design",
 		href: "/design",
 		icon: <PlusCircle className="h-6 w-6 text-indigo-600" />,
@@ -91,6 +98,18 @@ export default function Home() {
 								className="hover:text-zinc-700"
 							>
 								Contact
+							</Link>
+							<Link
+								href="/login"
+								className="hover:text-zinc-700"
+							>
+								Sign In
+							</Link>
+							<Link
+								href="/register"
+								className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+							>
+								Get Started
 							</Link>
 						</div>
 					</div>
