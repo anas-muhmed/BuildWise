@@ -32,17 +32,17 @@ export default function InsightsPanel({
   };
 
   return (
-    <div className="sticky top-6 bg-white border rounded-xl shadow-lg p-5 h-[520px] flex flex-col">
-      {/* 🎯 TAB NAVIGATION */}
+    <div className="sticky top-6 bg-gradient-to-br from-white to-blue-50/30 border rounded-xl shadow-lg p-5 h-[520px] flex flex-col">
+      {/* 🎯 TAB NAVIGATION with AI branding */}
       <div className="flex gap-3 mb-4 border-b pb-2">
         {(["overview", "best", "cost"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
               activeTab === tab
-                ? "bg-blue-100 text-blue-700 border border-blue-200"
-                : "text-gray-600 hover:bg-gray-50"
+                ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+                : "text-gray-600 hover:bg-gray-50 hover:scale-102"
             }`}
           >
             {tab === "overview" && "🧠 Overview"}

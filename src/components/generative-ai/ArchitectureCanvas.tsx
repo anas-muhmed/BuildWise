@@ -1,8 +1,9 @@
 // components/generative-ai/ArchitectureCanvas.tsx
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { FiRefreshCcw, FiDownload, FiCpu, FiTrash2 } from "react-icons/fi";
 import { FaDatabase, FaBolt, FaCogs, FaNetworkWired } from "react-icons/fa";
+import NodeModal from "./NodeModal";
 
 // 🎯 LEARNING: Type Definitions
 // Shared types for our architecture nodes and connections
@@ -29,6 +30,8 @@ export default function ArchitectureCanvas({
   onExport,
   onClear,
 }: CanvasProps) {
+  // 🎯 NEW: Modal state management
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
   // 🎯 LEARNING: useMemo for Performance
   // This only recalculates when 'nodes' array changes
@@ -52,10 +55,10 @@ export default function ArchitectureCanvas({
 
   return (
     <div
-      className="relative w-full h-[520px] bg-white rounded-xl border shadow-inner overflow-hidden"
+      className="relative w-full h-[520px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border shadow-inner overflow-hidden"
       style={{
         backgroundImage:
-          "linear-gradient(#f3f4f6 1px, transparent 1px), linear-gradient(90deg,#f3f4f6 1px, transparent 1px)",
+          "linear-gradient(#e0e7ff 1px, transparent 1px), linear-gradient(90deg,#e0e7ff 1px, transparent 1px)",
         backgroundSize: "32px 32px, 32px 32px",
       }}
     >
@@ -129,7 +132,8 @@ export default function ArchitectureCanvas({
       {nodes.map((n, index) => (
         <div
           key={n.id}
-          className="absolute flex flex-col items-center bg-white border-2 border-gray-200 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all hover:scale-110 hover:shadow-xl cursor-pointer"
+          onClick={() => setSelectedNode(n)}
+          className="absolute flex flex-col items-center bg-white border-2 border-gray-200 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all hover:scale-110 hover:shadow-xl hover:border-blue-400 cursor-pointer"
           style={{
             left: n.x,
             top: n.y,
@@ -137,6 +141,7 @@ export default function ArchitectureCanvas({
             animationDelay: `${index * 0.05}s`,
             opacity: 0,
           }}
+          title="Click for details"
         >
           <div className="text-xl mb-1">{getIcon(n.label)}</div>
           {n.label}
@@ -152,18 +157,42 @@ export default function ArchitectureCanvas({
         </div>
       )}
 
-      {/* 🎯 LOADING STATE: AI Thinking Animation */}
+      {/* 🎯 LOADING STATE: AI Thinking Animation with Progress Bar */}
       {loading && (
-        <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center">
-          {aiThinking.map((line, idx) => (
-            <p
-              key={idx}
-              className="text-gray-600 text-sm mb-1 animate-pulse"
-              style={{ animationDelay: `${idx * 0.3}s` }}
-            >
-              {line}
-            </p>
-          ))}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/95 via-indigo-50/95 to-purple-50/95 backdrop-blur-sm flex flex-col items-center justify-center">
+          {/* 🎯 AI Brain Icon with pulse animation */}
+          <div className="text-6xl mb-4 animate-bounce">🧠</div>
+          
+          {/* 🎯 Progress indicator */}
+          <div className="w-64 bg-gray-200 rounded-full h-2 mb-6 overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+              style={{ width: `${(aiThinking.length / 5) * 100}%` }}
+            />
+          </div>
+
+          {/* 🎯 AI Thinking steps */}
+          <div className="space-y-2">
+            {aiThinking.map((line, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 text-gray-700 text-sm font-medium"
+                style={{ 
+                  animation: 'fadeInLeft 0.4s ease-out',
+                  animationDelay: `${idx * 0.1}s`,
+                  opacity: 0,
+                  animationFillMode: 'forwards'
+                }}
+              >
+                <div className="flex gap-1">
+                  <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>
+                  <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></span>
+                </div>
+                {line}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -179,7 +208,28 @@ export default function ArchitectureCanvas({
             transform: translateY(0);
           }
         }
+        
+        @keyframes fadeInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        }
       `}</style>
+
+      {/* 🎯 NODE DETAILS MODAL: Shows when a node is clicked */}
+      {selectedNode && (
+        <NodeModal
+          node={selectedNode}
+          edges={edges}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
     </div>
   );
 }
