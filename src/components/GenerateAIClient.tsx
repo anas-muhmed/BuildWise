@@ -10,6 +10,9 @@ import InsightsPanel from "./generative-ai/InsightsPanel";
 // 🎯 NEW: Import our reducer logic
 import { appReducer, initialState } from "@/lib/reducer";
 
+// 🎯 NEW: Import mock generator utility (moved from this file!)
+import { generateMockFromPrompt } from "@/lib/mockGenerator";
+
 // 🎯 LEARNING: Main component is now a "Container Component"
 // It manages STATE and LOGIC, but delegates RENDERING to child components
 export default function GenerateAIClient() {
@@ -17,58 +20,6 @@ export default function GenerateAIClient() {
   // state = all our data in one organized object
   // dispatch = function to send actions to the reducer
   const [state, dispatch] = useReducer(appReducer, initialState);
-
-  // 🎯 BUSINESS LOGIC: Mock AI Generator
-  // TODO: In future, move this to /lib/mockGenerator.ts for better organization
-  function generateMockFromPrompt(text: string) {
-    const t = text.toLowerCase();
-    if (t.includes("food") || t.includes("delivery") || t.includes("swiggy")) {
-      return {
-        nodes: [
-          { id: "frontend", label: "MOBILE APP", x: 120, y: 80 },
-          { id: "loadbalancer", label: "LOAD BALANCER", x: 320, y: 60 },
-          { id: "api-gateway", label: "API GATEWAY", x: 520, y: 60 },
-          { id: "user-service", label: "USER SERVICE", x: 320, y: 160 },
-          { id: "restaurant-service", label: "RESTAURANT SERVICE", x: 520, y: 160 },
-          { id: "order-service", label: "ORDER SERVICE", x: 320, y: 240 },
-          { id: "payment-service", label: "PAYMENT SERVICE", x: 520, y: 240 },
-          { id: "db", label: "DATABASE", x: 320, y: 340 },
-          { id: "cache", label: "REDIS CACHE", x: 520, y: 340 },
-        ],
-        edges: [
-          { source: "frontend", target: "loadbalancer" },
-          { source: "loadbalancer", target: "api-gateway" },
-          { source: "api-gateway", target: "user-service" },
-          { source: "api-gateway", target: "restaurant-service" },
-          { source: "api-gateway", target: "order-service" },
-          { source: "order-service", target: "payment-service" },
-          { source: "order-service", target: "db" },
-          { source: "restaurant-service", target: "cache" },
-        ],
-        explanations: [
-          "Load Balancer distributes requests across backend servers to handle peak demand efficiently.",
-          "API Gateway secures and routes client requests to appropriate microservices.",
-          "Redis Cache improves performance by reducing redundant database queries.",
-          "Microservices isolate failures: payment or order issues don't crash the entire system.",
-        ],
-      };
-    }
-    return {
-      nodes: [
-        { id: "frontend", label: "FRONTEND", x: 120, y: 100 },
-        { id: "backend", label: "BACKEND", x: 320, y: 180 },
-        { id: "db", label: "DATABASE", x: 520, y: 260 },
-      ],
-      edges: [
-        { source: "frontend", target: "backend" },
-        { source: "backend", target: "db" },
-      ],
-      explanations: [
-        "Frontend communicates with backend via REST APIs.",
-        "Backend connects to Database for persistent storage.",
-      ],
-    };
-  }
 
   // 🎯 HANDLER: Generate Architecture
   async function handleGenerate() {
