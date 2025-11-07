@@ -26,7 +26,7 @@ export interface AppState {
   // UI state (what user sees)
   ui: {
     displayedText: string[];
-    activeTab: "overview" | "best" | "cost";
+    activeTab: "overview" | "best" | "cost" | "health";
   };
 }
 
@@ -56,7 +56,7 @@ export const initialState: AppState = {
 // These are all the things that can happen in our app
 export type AppAction =
   | { type: "SET_PROMPT"; payload: string }
-  | { type: "SET_ACTIVE_TAB"; payload: "overview" | "best" | "cost" }
+  | { type: "SET_ACTIVE_TAB"; payload: "overview" | "best" | "cost" | "health" }
   | { type: "GENERATE_START" }
   | { 
       type: "GENERATE_SUCCESS"; 

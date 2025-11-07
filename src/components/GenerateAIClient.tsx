@@ -26,20 +26,51 @@ export default function GenerateAIClient() {
     // 🎯 LEARNING: Instead of multiple setState calls, we dispatch ONE action!
     dispatch({ type: "GENERATE_START" });
 
-    // 🎯 LEARNING: AI Thinking Simulation
-    // Shows progressive steps to make AI feel more realistic
-    const steps = [
-      "Analyzing architecture patterns...",
-      "Detecting microservice boundaries...",
-      "Optimizing scalability and fault-tolerance...",
-      "Generating diagram layout...",
-      "Finalizing insights...",
+    // 🎯 TIER 1: Randomized AI Thinking - Makes AI feel human, not scripted
+    // Multiple phrase variations for each step to avoid repetition
+    const thinkingPhrases = [
+      [
+        "Analyzing architecture patterns...",
+        "Studying system requirements...",
+        "Examining scalability needs...",
+        "Evaluating infrastructure options...",
+      ],
+      [
+        "Detecting microservice boundaries...",
+        "Identifying service dependencies...",
+        "Mapping data flow patterns...",
+        "Discovering component relationships...",
+      ],
+      [
+        "Optimizing scalability and fault-tolerance...",
+        "Calculating resource allocation...",
+        "Planning redundancy strategies...",
+        "Designing failure recovery paths...",
+      ],
+      [
+        "Generating diagram layout...",
+        "Positioning architecture components...",
+        "Creating visual hierarchy...",
+        "Arranging service topology...",
+      ],
+      [
+        "Finalizing insights...",
+        "Preparing best practices...",
+        "Generating recommendations...",
+        "Compiling architecture summary...",
+      ],
     ];
+
+    // Pick random phrase from each category
+    const steps = thinkingPhrases.map(
+      (phrases) => phrases[Math.floor(Math.random() * phrases.length)]
+    );
     
-    // Add each thinking step one by one
+    // Add each thinking step with variable timing (400-600ms for natural feel)
     for (let i = 0; i < steps.length; i++) {
       dispatch({ type: "ADD_AI_THINKING", payload: steps[i] });
-      await new Promise((r) => setTimeout(r, 500));
+      const delay = 400 + Math.random() * 200; // Random 400-600ms
+      await new Promise((r) => setTimeout(r, delay));
     }
 
     // Generate the mock architecture
@@ -127,6 +158,7 @@ export default function GenerateAIClient() {
           setActiveTab={(tab) => dispatch({ type: "SET_ACTIVE_TAB", payload: tab })}
           nodeCount={state.architecture.nodes.length}
           edgeCount={state.architecture.edges.length}
+          nodes={state.architecture.nodes}
         />
       </div>
     </div>

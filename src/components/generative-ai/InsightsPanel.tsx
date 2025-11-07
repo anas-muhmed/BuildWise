@@ -1,17 +1,19 @@
 // components/generative-ai/InsightsPanel.tsx
 "use client";
 import React from "react";
+import { Node } from "./ArchitectureCanvas";
 
 // 🎯 LEARNING: Type Union
-// activeTab can ONLY be one of these 3 values - TypeScript prevents typos
-type TabType = "overview" | "best" | "cost";
+// activeTab can ONLY be one of these 4 values - TypeScript prevents typos
+type TabType = "overview" | "best" | "cost" | "health";
 
 interface InsightsPanelProps {
   displayedText: string[];
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
-  nodeCount: number;  // 🎯 NEW: We'll use this for dynamic cost calculation
-  edgeCount: number;  // 🎯 NEW: We'll use this for dynamic cost calculation
+  nodeCount: number;
+  edgeCount: number;
+  nodes: Node[];  // 🎯 TIER 1: Need actual nodes for type-specific pricing
 }
 
 export default function InsightsPanel({
@@ -20,26 +22,63 @@ export default function InsightsPanel({
   setActiveTab,
   nodeCount,
   edgeCount,
+  nodes,
 }: InsightsPanelProps) {
   
-  // 🎯 LEARNING: Calculated Values
-  // Instead of hard-coded costs, we calculate based on actual architecture
-  const calculateCost = () => {
-    const baseCost = 0.01;
-    const nodeCost = nodeCount * 0.03;
-    const edgeCost = edgeCount * 0.005;
-    return (baseCost + nodeCost + edgeCost).toFixed(3);
+  // 🎯 TIER 1: Enhanced Cost Calculation with Node-Type-Specific Rates
+  const calculateEnhancedCost = () => {
+    let totalCost = 0.01; // Base infrastructure
+    
+    // Node-specific pricing based on component type
+    nodes.forEach((node) => {
+      const label = node.label.toUpperCase();
+      if (label.includes("DATABASE")) totalCost += 0.05; // $0.05/hr = ~$36/mo
+      else if (label.includes("CACHE") || label.includes("REDIS")) totalCost += 0.03; // $22/mo
+      else if (label.includes("LOAD BALANCER") || label.includes("GATEWAY")) totalCost += 0.025;
+      else if (label.includes("SERVICE")) totalCost += 0.02; // Microservices
+      else totalCost += 0.015; // Generic components
+    });
+    
+    // Network costs (connections)
+    totalCost += edgeCount * 0.005;
+    
+    return totalCost;
   };
+
+  // 🎯 TIER 1: AI Health Score Calculation
+  const calculateHealthScores = () => {
+    // Speed Score: Based on caching and load balancing
+    const hasCache = nodes.some(n => n.label.includes("CACHE"));
+    const hasLoadBalancer = nodes.some(n => n.label.includes("LOAD BALANCER"));
+    const speedScore = 60 + (hasCache ? 20 : 0) + (hasLoadBalancer ? 20 : 0);
+
+    // Security Score: Based on API Gateway and proper service boundaries
+    const hasGateway = nodes.some(n => n.label.includes("GATEWAY"));
+    const hasMicroservices = nodes.filter(n => n.label.includes("SERVICE")).length > 1;
+    const securityScore = 50 + (hasGateway ? 30 : 0) + (hasMicroservices ? 20 : 0);
+
+    // Cost Efficiency: Inverse of monthly cost (lower cost = higher score)
+    const monthlyCost = calculateEnhancedCost() * 730;
+    const costScore = Math.max(0, Math.min(100, 100 - (monthlyCost * 2)));
+
+    return { speedScore, securityScore, costScore };
+  };
+  
+  const calculateCost = () => {
+    return calculateEnhancedCost().toFixed(3);
+  };
+
+  const healthScores = calculateHealthScores();
 
   return (
     <div className="sticky top-6 bg-gradient-to-br from-white to-blue-50/30 border rounded-xl shadow-lg p-5 h-[520px] flex flex-col">
       {/* 🎯 TAB NAVIGATION with AI branding */}
-      <div className="flex gap-3 mb-4 border-b pb-2">
-        {(["overview", "best", "cost"] as const).map((tab) => (
+      <div className="flex gap-2 mb-4 border-b pb-2">
+        {(["overview", "best", "cost", "health"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
               activeTab === tab
                 ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105"
                 : "text-gray-600 hover:bg-gray-50 hover:scale-102"
@@ -47,7 +86,8 @@ export default function InsightsPanel({
           >
             {tab === "overview" && "🧠 Overview"}
             {tab === "best" && "⚙️ Best Practices"}
-            {tab === "cost" && "💰 Cost View"}
+            {tab === "cost" && "💰 Cost"}
+            {tab === "health" && "📊 Health"}
           </button>
         ))}
       </div>
@@ -105,7 +145,7 @@ export default function InsightsPanel({
           </ul>
         )}
 
-        {/* COST VIEW TAB: Dynamic calculation based on architecture */}
+        {/* COST VIEW TAB: Enhanced dynamic calculation with node-type rates */}
         {activeTab === "cost" && (
           <div className="text-sm text-gray-700">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -117,25 +157,53 @@ export default function InsightsPanel({
             <table className="w-full mt-3 border text-xs">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 border text-left">Component</th>
+                  <th className="p-2 border text-left">Component Type</th>
+                  <th className="p-2 border text-center">Count</th>
                   <th className="p-2 border text-right">Cost/hr</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td className="p-2 border">Base Infrastructure</td>
+                  <td className="p-2 border text-center">-</td>
                   <td className="p-2 border text-right">$0.01</td>
                 </tr>
+                {nodes.filter(n => n.label.includes("DATABASE")).length > 0 && (
+                  <tr>
+                    <td className="p-2 border">💾 Database</td>
+                    <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("DATABASE")).length}</td>
+                    <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("DATABASE")).length * 0.05).toFixed(3)}</td>
+                  </tr>
+                )}
+                {nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length > 0 && (
+                  <tr>
+                    <td className="p-2 border">⚡ Cache</td>
+                    <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length}</td>
+                    <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length * 0.03).toFixed(3)}</td>
+                  </tr>
+                )}
+                {nodes.filter(n => n.label.includes("SERVICE")).length > 0 && (
+                  <tr>
+                    <td className="p-2 border">⚙️ Microservices</td>
+                    <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("SERVICE")).length}</td>
+                    <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("SERVICE")).length * 0.02).toFixed(3)}</td>
+                  </tr>
+                )}
+                {nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length > 0 && (
+                  <tr>
+                    <td className="p-2 border">🌐 Load Balancer/Gateway</td>
+                    <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length}</td>
+                    <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length * 0.025).toFixed(3)}</td>
+                  </tr>
+                )}
                 <tr>
-                  <td className="p-2 border">Services ({nodeCount} nodes)</td>
-                  <td className="p-2 border text-right">${(nodeCount * 0.03).toFixed(3)}</td>
-                </tr>
-                <tr>
-                  <td className="p-2 border">Network ({edgeCount} connections)</td>
+                  <td className="p-2 border">🔗 Network Connections</td>
+                  <td className="p-2 border text-center">{edgeCount}</td>
                   <td className="p-2 border text-right">${(edgeCount * 0.005).toFixed(3)}</td>
                 </tr>
                 <tr className="font-semibold bg-gray-50">
                   <td className="p-2 border">Total per hour</td>
+                  <td className="p-2 border text-center">-</td>
                   <td className="p-2 border text-right">${calculateCost()}</td>
                 </tr>
               </tbody>
@@ -144,6 +212,96 @@ export default function InsightsPanel({
             <p className="text-xs text-gray-500 mt-3">
               * Estimates include compute, storage, and data transfer. Actual costs may vary based on usage patterns.
             </p>
+          </div>
+        )}
+
+        {/* HEALTH SCORE TAB: AI-powered architecture analysis */}
+        {activeTab === "health" && (
+          <div className="text-sm space-y-4">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                📊 Architecture Health Score
+              </h3>
+              <p className="text-xs text-gray-600 mb-4">
+                AI-analyzed metrics evaluating your system&apos;s performance, security, and cost efficiency.
+              </p>
+
+              {/* Speed Score */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-gray-700">⚡ Speed & Performance</span>
+                  <span className="text-xs font-bold text-blue-600">{healthScores.speedScore}/100</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-gradient-to-r from-green-400 to-green-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${healthScores.speedScore}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {healthScores.speedScore >= 90 ? "Excellent - Optimized for high throughput" :
+                   healthScores.speedScore >= 70 ? "Good - Consider adding caching layer" :
+                   "Needs improvement - Add load balancer and cache"}
+                </p>
+              </div>
+
+              {/* Security Score */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-gray-700">🔒 Security & Isolation</span>
+                  <span className="text-xs font-bold text-indigo-600">{healthScores.securityScore}/100</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-gradient-to-r from-indigo-400 to-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${healthScores.securityScore}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {healthScores.securityScore >= 90 ? "Excellent - Well-isolated microservices" :
+                   healthScores.securityScore >= 70 ? "Good - API Gateway present" :
+                   "Needs improvement - Add API Gateway and service boundaries"}
+                </p>
+              </div>
+
+              {/* Cost Efficiency Score */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-gray-700">💰 Cost Efficiency</span>
+                  <span className="text-xs font-bold text-purple-600">{healthScores.costScore.toFixed(0)}/100</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-gradient-to-r from-purple-400 to-purple-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${healthScores.costScore}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {healthScores.costScore >= 80 ? "Excellent - Cost-optimized architecture" :
+                   healthScores.costScore >= 60 ? "Good - Reasonable resource allocation" :
+                   "High cost - Consider serverless or managed services"}
+                </p>
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <h4 className="font-semibold text-yellow-900 text-xs mb-2">💡 AI Recommendations</h4>
+              <ul className="space-y-1.5 text-xs text-yellow-800">
+                {healthScores.speedScore < 80 && (
+                  <li>• Add Redis cache to improve response times by 60-80%</li>
+                )}
+                {healthScores.securityScore < 80 && (
+                  <li>• Implement API Gateway for centralized authentication</li>
+                )}
+                {healthScores.costScore < 70 && (
+                  <li>• Consider auto-scaling policies to optimize resource usage</li>
+                )}
+                {healthScores.speedScore >= 80 && healthScores.securityScore >= 80 && healthScores.costScore >= 70 ? (
+                  <li>✓ Architecture is well-optimized across all dimensions!</li>
+                ) : null}
+              </ul>
+            </div>
           </div>
         )}
       </div>
