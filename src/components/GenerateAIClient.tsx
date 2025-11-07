@@ -1,24 +1,22 @@
 // components/GenerateAIClient.tsx
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useReducer, useEffect } from "react";
 
 // 🎯 LEARNING: Import our new sub-components
 import Toolbar from "./generative-ai/Toolbar";
-import ArchitectureCanvas, { Node, Edge } from "./generative-ai/ArchitectureCanvas";
+import ArchitectureCanvas from "./generative-ai/ArchitectureCanvas";
 import InsightsPanel from "./generative-ai/InsightsPanel";
+
+// 🎯 NEW: Import our reducer logic
+import { appReducer, initialState } from "@/lib/reducer";
 
 // 🎯 LEARNING: Main component is now a "Container Component"
 // It manages STATE and LOGIC, but delegates RENDERING to child components
 export default function GenerateAIClient() {
-  // 🎯 STATE: All the data our app needs
-  const [prompt, setPrompt] = useState("I want to build a scalable food delivery app like Swiggy");
-  const [loading, setLoading] = useState(false);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [explanations, setExplanations] = useState<string[]>([]);
-  const [displayedText, setDisplayedText] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"overview" | "best" | "cost">("overview");
-  const [aiThinking, setAiThinking] = useState<string[]>([]);
+  // 🎯 NEW STATE MANAGEMENT: useReducer replaces 8 useState calls!
+  // state = all our data in one organized object
+  // dispatch = function to send actions to the reducer
+  const [state, dispatch] = useReducer(appReducer, initialState);
 
   // 🎯 BUSINESS LOGIC: Mock AI Generator
   // TODO: In future, move this to /lib/mockGenerator.ts for better organization
@@ -74,11 +72,8 @@ export default function GenerateAIClient() {
 
   // 🎯 HANDLER: Generate Architecture
   async function handleGenerate() {
-    setLoading(true);
-    setDisplayedText([]);
-    setAiThinking([]);
-    setNodes([]);
-    setEdges([]);
+    // 🎯 LEARNING: Instead of multiple setState calls, we dispatch ONE action!
+    dispatch({ type: "GENERATE_START" });
 
     // 🎯 LEARNING: AI Thinking Simulation
     // Shows progressive steps to make AI feel more realistic
@@ -90,35 +85,50 @@ export default function GenerateAIClient() {
       "Finalizing insights...",
     ];
     
+    // Add each thinking step one by one
     for (let i = 0; i < steps.length; i++) {
-      setAiThinking((prev) => [...prev, steps[i]]);
+      dispatch({ type: "ADD_AI_THINKING", payload: steps[i] });
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    const mock = generateMockFromPrompt(prompt);
-    setNodes(mock.nodes);
-    setEdges(mock.edges);
-    setExplanations(mock.explanations);
-    setLoading(false);
+    // Generate the mock architecture
+    const mock = generateMockFromPrompt(state.prompt);
+    
+    // Dispatch success with all the data at once!
+    dispatch({ 
+      type: "GENERATE_SUCCESS", 
+      payload: {
+        nodes: mock.nodes,
+        edges: mock.edges,
+        explanations: mock.explanations
+      }
+    });
   }
 
   // 🎯 EFFECT: Typing animation for explanations
   // Displays explanations one by one with delay for AI feel
   useEffect(() => {
-    if (!loading && explanations.length > 0) {
+    if (!state.loadingState.loading && state.architecture.explanations.length > 0) {
       let idx = 0;
       const interval = setInterval(() => {
-        setDisplayedText((prev) => [...prev, explanations[idx]]);
+        dispatch({ 
+          type: "ADD_DISPLAYED_TEXT", 
+          payload: state.architecture.explanations[idx] 
+        });
         idx++;
-        if (idx >= explanations.length) clearInterval(interval);
+        if (idx >= state.architecture.explanations.length) clearInterval(interval);
       }, 700);
       return () => clearInterval(interval);
     }
-  }, [loading, explanations]);
+  }, [state.loadingState.loading, state.architecture.explanations]);
 
   // 🎯 HANDLER: Export Design as JSON
   const exportDesign = () => {
-    const data = { nodes, edges, explanations };
+    const data = { 
+      nodes: state.architecture.nodes, 
+      edges: state.architecture.edges, 
+      explanations: state.architecture.explanations 
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -128,11 +138,7 @@ export default function GenerateAIClient() {
 
   // 🎯 HANDLER: Clear Design
   const clearDesign = () => {
-    setNodes([]);
-    setEdges([]);
-    setExplanations([]);
-    setDisplayedText([]);
-    setAiThinking([]);
+    dispatch({ type: "CLEAR_DESIGN" });
   };
 
   // 🎯 RENDER: Component Composition
@@ -143,18 +149,18 @@ export default function GenerateAIClient() {
       <div className="col-span-8">
         {/* 🎯 Toolbar Component - Handles input and quick prompts */}
         <Toolbar
-          prompt={prompt}
-          setPrompt={setPrompt}
+          prompt={state.prompt}
+          setPrompt={(value) => dispatch({ type: "SET_PROMPT", payload: value })}
           onGenerate={handleGenerate}
-          loading={loading}
+          loading={state.loadingState.loading}
         />
 
         {/* 🎯 Canvas Component - Handles all diagram rendering */}
         <ArchitectureCanvas
-          nodes={nodes}
-          edges={edges}
-          loading={loading}
-          aiThinking={aiThinking}
+          nodes={state.architecture.nodes}
+          edges={state.architecture.edges}
+          loading={state.loadingState.loading}
+          aiThinking={state.loadingState.aiThinking}
           onRegenerate={handleGenerate}
           onExport={exportDesign}
           onClear={clearDesign}
@@ -165,11 +171,11 @@ export default function GenerateAIClient() {
       <div className="col-span-4">
         {/* 🎯 InsightsPanel Component - Handles tabs and content display */}
         <InsightsPanel
-          displayedText={displayedText}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          nodeCount={nodes.length}
-          edgeCount={edges.length}
+          displayedText={state.ui.displayedText}
+          activeTab={state.ui.activeTab}
+          setActiveTab={(tab) => dispatch({ type: "SET_ACTIVE_TAB", payload: tab })}
+          nodeCount={state.architecture.nodes.length}
+          edgeCount={state.architecture.edges.length}
         />
       </div>
     </div>
