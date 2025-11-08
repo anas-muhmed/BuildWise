@@ -45,21 +45,38 @@ export default function InsightsPanel({
     return totalCost;
   };
 
-  // 🎯 TIER 1: AI Health Score Calculation
+  // 🎯 PHASE 3: Dynamic AI Health Score Calculation (based on node count & diversity)
   const calculateHealthScores = () => {
-    // Speed Score: Based on caching and load balancing
+    // Speed Score: More comprehensive calculation
     const hasCache = nodes.some(n => n.label.includes("CACHE"));
     const hasLoadBalancer = nodes.some(n => n.label.includes("LOAD BALANCER"));
-    const speedScore = 60 + (hasCache ? 20 : 0) + (hasLoadBalancer ? 20 : 0);
+    const hasCDN = nodes.some(n => n.label.includes("CDN"));
+    const connectionDensity = nodes.length > 0 ? edgeCount / nodes.length : 0;
+    
+    let speedScore = 50; // Base score
+    speedScore += hasCache ? 20 : 0;
+    speedScore += hasLoadBalancer ? 15 : 0;
+    speedScore += hasCDN ? 10 : 0;
+    speedScore += connectionDensity < 2 ? 5 : 0; // Bonus for not being over-connected
+    speedScore = Math.min(100, speedScore);
 
-    // Security Score: Based on API Gateway and proper service boundaries
+    // Security Score: Based on architecture patterns
     const hasGateway = nodes.some(n => n.label.includes("GATEWAY"));
-    const hasMicroservices = nodes.filter(n => n.label.includes("SERVICE")).length > 1;
-    const securityScore = 50 + (hasGateway ? 30 : 0) + (hasMicroservices ? 20 : 0);
+    const serviceCount = nodes.filter(n => n.label.includes("SERVICE")).length;
+    const hasMicroservices = serviceCount > 1;
+    const hasAuth = nodes.some(n => n.label.includes("AUTH") || n.label.includes("USER"));
+    
+    let securityScore = 40; // Base score
+    securityScore += hasGateway ? 25 : 0;
+    securityScore += hasMicroservices ? 15 : 0;
+    securityScore += hasAuth ? 10 : 0;
+    securityScore += serviceCount >= 3 ? 10 : 0; // Well-separated concerns
+    securityScore = Math.min(100, securityScore);
 
-    // Cost Efficiency: Inverse of monthly cost (lower cost = higher score)
+    // Cost Efficiency: Based on node count and monthly cost
     const monthlyCost = calculateEnhancedCost() * 730;
-    const costScore = Math.max(0, Math.min(100, 100 - (monthlyCost * 2)));
+    const nodeEfficiency = nodes.length > 0 ? Math.max(0, 100 - (nodes.length * 8)) : 0;
+    const costScore = Math.max(0, Math.min(100, nodeEfficiency - (monthlyCost * 1.5)));
 
     return { speedScore, securityScore, costScore };
   };

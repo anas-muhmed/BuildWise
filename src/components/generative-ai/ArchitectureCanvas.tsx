@@ -150,6 +150,12 @@ export default function ArchitectureCanvas({
               fill="none"
               strokeLinecap="round"
               markerEnd="url(#arrowhead)"
+              className="animate-drawPath"
+              style={{
+                strokeDasharray: "1000",
+                strokeDashoffset: "1000",
+                animation: `drawPath 1s ease-out ${i * 0.1}s forwards`,
+              }}
             />
           );
         })}
@@ -192,7 +198,7 @@ export default function ArchitectureCanvas({
       {/* 🎯 EMPTY STATE: Shows when no architecture generated */}
       {nodes.length === 0 && !loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-          <div className="text-5xl mb-3">🧠</div>
+          <div className="text-5xl mb-3 animate-floatBrain">🧠</div>
           <p className="font-medium">Your AI-generated architecture will appear here</p>
           <p className="text-sm mt-2">Describe any system. Let BuildWise think for you 🤖</p>
         </div>
@@ -259,6 +265,28 @@ export default function ArchitectureCanvas({
             opacity: 1;
             transform: translateX(0);
           }
+        }
+        
+        @keyframes drawPath {
+          from {
+            stroke-dashoffset: 1000;
+          }
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        
+        @keyframes floatBrain {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-15px);
+          }
+        }
+        
+        .animate-floatBrain {
+          animation: floatBrain 3s ease-in-out infinite;
         }
         }
       `}</style>

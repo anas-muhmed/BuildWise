@@ -13,6 +13,15 @@ export interface MockArchitecture {
 }
 
 /**
+ * 🎯 HELPER: Add slight Y-position randomization for organic look
+ * @param y - Base Y position
+ * @returns Y position with ±10px random offset
+ */
+function randomizeY(y: number): number {
+  return y + Math.floor(Math.random() * 20 - 10); // ±10px variation
+}
+
+/**
  * 🎯 PURE FUNCTION: Generates mock architecture based on user prompt
  * 
  * @param prompt - The user's input text describing what they want to build
@@ -31,15 +40,15 @@ export function generateMockFromPrompt(prompt: string): MockArchitecture {
   if (text.includes("food") || text.includes("delivery") || text.includes("swiggy")) {
     return {
       nodes: [
-        { id: "frontend", label: "MOBILE APP", x: 120, y: 80 },
-        { id: "loadbalancer", label: "LOAD BALANCER", x: 320, y: 60 },
-        { id: "api-gateway", label: "API GATEWAY", x: 520, y: 60 },
-        { id: "user-service", label: "USER SERVICE", x: 320, y: 160 },
-        { id: "restaurant-service", label: "RESTAURANT SERVICE", x: 520, y: 160 },
-        { id: "order-service", label: "ORDER SERVICE", x: 320, y: 240 },
-        { id: "payment-service", label: "PAYMENT SERVICE", x: 520, y: 240 },
-        { id: "db", label: "DATABASE", x: 320, y: 340 },
-        { id: "cache", label: "REDIS CACHE", x: 520, y: 340 },
+        { id: "frontend", label: "MOBILE APP", x: 120, y: randomizeY(80) },
+        { id: "loadbalancer", label: "LOAD BALANCER", x: 320, y: randomizeY(60) },
+        { id: "api-gateway", label: "API GATEWAY", x: 520, y: randomizeY(60) },
+        { id: "user-service", label: "USER SERVICE", x: 320, y: randomizeY(160) },
+        { id: "restaurant-service", label: "RESTAURANT SERVICE", x: 520, y: randomizeY(160) },
+        { id: "order-service", label: "ORDER SERVICE", x: 320, y: randomizeY(240) },
+        { id: "payment-service", label: "PAYMENT SERVICE", x: 520, y: randomizeY(240) },
+        { id: "db", label: "DATABASE", x: 320, y: randomizeY(340) },
+        { id: "cache", label: "REDIS CACHE", x: 520, y: randomizeY(340) },
       ],
       edges: [
         { source: "frontend", target: "loadbalancer" },
@@ -63,9 +72,9 @@ export function generateMockFromPrompt(prompt: string): MockArchitecture {
   // 🎯 DEFAULT: Generic 3-tier architecture for any other prompt
   return {
     nodes: [
-      { id: "frontend", label: "FRONTEND", x: 120, y: 100 },
-      { id: "backend", label: "BACKEND", x: 320, y: 180 },
-      { id: "db", label: "DATABASE", x: 520, y: 260 },
+      { id: "frontend", label: "FRONTEND", x: 120, y: randomizeY(100) },
+      { id: "backend", label: "BACKEND", x: 320, y: randomizeY(180) },
+      { id: "db", label: "DATABASE", x: 520, y: randomizeY(260) },
     ],
     edges: [
       { source: "frontend", target: "backend" },

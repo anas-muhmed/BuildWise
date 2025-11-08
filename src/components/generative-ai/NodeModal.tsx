@@ -12,6 +12,14 @@ interface NodeModalProps {
 
 export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
   const [copied, setCopied] = React.useState(false);
+  const [isAnimating, setIsAnimating] = React.useState(true);
+
+  // 🎯 PHASE 3: Slide animation on mount
+  React.useEffect(() => {
+    setIsAnimating(true);
+    const timer = setTimeout(() => setIsAnimating(false), 300);
+    return () => clearTimeout(timer);
+  }, [node.id]); // Re-animate when node changes
 
   // 🎯 LEARNING: Calculate connections
   // Find all edges where this node is source or target
@@ -87,10 +95,10 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {/* Modal - PHASE 3: Added slide animation on node change */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto pointer-events-auto animate-slideUp"
+          className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto pointer-events-auto ${isAnimating ? 'animate-modalSlide' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -371,7 +379,7 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
         </div>
       </div>
 
-      {/* CSS Animations */}
+      {/* CSS Animations - PHASE 3: Added modalSlide */}
       <style jsx>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -388,6 +396,17 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
             transform: translateY(0);
           }
         }
+
+        @keyframes modalSlide {
+          from {
+            opacity: 0;
+            transform: translateX(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
         
         .animate-fadeIn {
           animation: fadeIn 0.2s ease-out;
@@ -395,6 +414,10 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
         
         .animate-slideUp {
           animation: slideUp 0.3s ease-out;
+        }
+
+        .animate-modalSlide {
+          animation: modalSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
     </>
