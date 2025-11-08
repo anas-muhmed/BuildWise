@@ -27,6 +27,31 @@ export default function InsightsPanel({
   // 🎯 PHASE 4: Monthly/Hourly toggle state
   const [costView, setCostView] = React.useState<"hourly" | "monthly">("monthly");
   
+  // 🎯 PHASE 5: Detect architecture pattern
+  const detectPattern = () => {
+    const serviceCount = nodes.filter(n => n.label.includes("SERVICE")).length;
+    const hasGateway = nodes.some(n => n.label.includes("GATEWAY"));
+    
+    if (serviceCount >= 3 && hasGateway) return { name: "Microservices", color: "bg-green-100 text-green-700 border-green-300" };
+    if (nodes.length <= 3) return { name: "Monolith", color: "bg-gray-100 text-gray-700 border-gray-300" };
+    if (nodes.some(n => n.label.includes("LAMBDA") || n.label.includes("FUNCTION"))) return { name: "Serverless", color: "bg-purple-100 text-purple-700 border-purple-300" };
+    return { name: "Distributed", color: "bg-blue-100 text-blue-700 border-blue-300" };
+  };
+  
+  // 🎯 PHASE 5: Copy best practice handler
+  const [copiedIndex, setCopiedIndex] = React.useState<number | null>(null);
+  const handleCopyPractice = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+  
+  // 🎯 PHASE 5: Collapsible sections state
+  const [expandedSections, setExpandedSections] = React.useState({ overview: true, best: true });
+  const toggleSection = (section: "overview" | "best") => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+  
   // 🎯 TIER 1 + PHASE 2: Enhanced Cost Calculation with More Realistic Rates
   const calculateEnhancedCost = () => {
     let totalCost = 0.005; // Reduced base infrastructure
@@ -130,15 +155,38 @@ export default function InsightsPanel({
       {/* 🎯 TAB CONTENT - Scrollable area with fade transition */}
       <div className="overflow-auto flex-1">
         
-        {/* OVERVIEW TAB: AI-generated explanations */}
+        {/* OVERVIEW TAB: AI-generated explanations with PHASE 5 collapse */}
         {activeTab === "overview" && (
+          <div>
+            <button
+              onClick={() => toggleSection("overview")}
+              className="w-full flex items-center justify-between px-2 py-1 mb-3 text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors"
+            >
+              <span>🧠 AI Insights</span>
+              <span>{expandedSections.overview ? '▼' : '▶'}</span>
+            </button>
+          {expandedSections.overview && (
           <ul className="space-y-4 animate-fadeIn">
             {displayedText.length === 0 ? (
               <li className="text-sm text-gray-500 italic">
                 Generate an architecture to see AI insights...
               </li>
             ) : (
-              displayedText.map((text, idx) => {
+              <>
+              {/* PHASE 5: Architecture Pattern Badge */}
+              {nodes.length > 0 && (() => {
+                const pattern = detectPattern();
+                return (
+                  <li className="mb-4">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${pattern.color}`}>
+                      <span>📐</span>
+                      <span>{pattern.name} Architecture</span>
+                    </div>
+                  </li>
+                );
+              })()}
+              
+              {displayedText.map((text, idx) => {
                 // Assign contextual icons based on content keywords
                 const getIcon = (text: string) => {
                   if (text.includes("database") || text.includes("storage")) return "💾";
@@ -160,39 +208,63 @@ export default function InsightsPanel({
                     <div className="text-sm text-gray-700 leading-relaxed flex-1">{text}</div>
                   </li>
                 );
-              })
+              })}
+              {/* PHASE 5: Typing Indicator */}
+              {displayedText.length > 0 && displayedText.length < 8 && (
+                <li className="flex gap-3 items-start animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg flex-shrink-0">
+                    🤔
+                  </div>
+                  <div className="text-sm text-gray-500 italic flex items-center gap-1">
+                    <span>AI is typing</span>
+                    <span className="animate-bounce">.</span>
+                    <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: '0.4s' }}>.</span>
+                  </div>
+                </li>
+              )}
+              </>
             )}
           </ul>
+          )}
+          </div>
         )}
 
-        {/* BEST PRACTICES TAB: Static recommendations */}
+        {/* BEST PRACTICES TAB: Static recommendations with PHASE 5 copy buttons */}
         {activeTab === "best" && (
+          <div>
+            <button
+              onClick={() => toggleSection("best")}
+              className="w-full flex items-center justify-between px-2 py-1 mb-3 text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors"
+            >
+              <span>⚙️ Best Practices</span>
+              <span>{expandedSections.best ? '▼' : '▶'}</span>
+            </button>
+          {expandedSections.best && (
           <ul className="space-y-3 text-sm text-gray-700 animate-fadeIn">
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Use rate limiting in API Gateway to prevent abuse and DDoS attacks.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Enable auto-scaling groups for backend servers to handle traffic spikes.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Use message queues (Kafka/SQS) for async operations like emails and notifications.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Monitor metrics via Prometheus + Grafana dashboards for real-time insights.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Implement circuit breakers to prevent cascading failures across microservices.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-600">✅</span>
-              <span>Use CDN for static assets to reduce latency and bandwidth costs.</span>
-            </li>
+            {[
+              "Use rate limiting in API Gateway to prevent abuse and DDoS attacks.",
+              "Enable auto-scaling groups for backend servers to handle traffic spikes.",
+              "Use message queues (Kafka/SQS) for async operations like emails and notifications.",
+              "Monitor metrics via Prometheus + Grafana dashboards for real-time insights.",
+              "Implement circuit breakers to prevent cascading failures across microservices.",
+              "Use CDN for static assets to reduce latency and bandwidth costs."
+            ].map((practice, idx) => (
+              <li key={idx} className="flex items-start gap-2 group">
+                <span className="text-green-600">✅</span>
+                <span className="flex-1">{practice}</span>
+                <button
+                  onClick={() => handleCopyPractice(practice, idx)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+                  title="Copy to clipboard"
+                >
+                  {copiedIndex === idx ? "✓" : "📋"}
+                </button>
+              </li>
+            ))}
           </ul>
+          )}
+          </div>
         )}
 
         {/* COST VIEW TAB: Enhanced dynamic calculation with node-type rates */}
@@ -234,6 +306,19 @@ export default function InsightsPanel({
               <p className="text-xs text-blue-600 mt-1">
                 Based on AWS us-east-1 pricing {costView === "monthly" && "(730 hrs/month)"}
               </p>
+              {/* PHASE 5: Cost Comparison */}
+              {nodes.length > 0 && (() => {
+                const avgCost = nodes.length * 15; // Simple avg: $15 per node
+                const yourCost = parseFloat(calculateCost()) * (costView === "monthly" ? 730 : 1);
+                const diff = ((yourCost - avgCost) / avgCost * 100).toFixed(0);
+                const isLower = yourCost < avgCost;
+                
+                return (
+                  <div className={`mt-2 px-3 py-2 rounded text-xs ${isLower ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
+                    <span className="font-medium">{isLower ? '✓' : '⚠'} Your cost is {Math.abs(Number(diff))}% {isLower ? 'lower' : 'higher'} than similar architectures</span>
+                  </div>
+                );
+              })()}
             </div>
 
             <table className="w-full mt-3 border text-xs">
@@ -400,10 +485,15 @@ export default function InsightsPanel({
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium text-gray-700">⚡ Speed & Performance</span>
-                  <span className={`text-xs font-bold ${
+                  <span className={`text-xs font-bold flex items-center gap-1 ${
                     healthScores.speedScore >= 80 ? 'text-green-600' : 
                     healthScores.speedScore >= 60 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>{healthScores.speedScore}/100</span>
+                  }`}>
+                    {healthScores.speedScore}/100
+                    {/* PHASE 5: Trend indicator */}
+                    {healthScores.speedScore >= 70 && <span className="text-green-500">↑</span>}
+                    {healthScores.speedScore < 50 && <span className="text-red-500">↓</span>}
+                  </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div

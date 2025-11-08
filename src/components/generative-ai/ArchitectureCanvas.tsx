@@ -83,11 +83,11 @@ export default function ArchitectureCanvas({
         wheel={{ step: 0.1 }}
         doubleClick={{ disabled: true }}
       >
-        {({ zoomIn, zoomOut, resetTransform }) => (
+        {({ zoomIn, zoomOut, resetTransform, instance }) => (
           <>
             {/* 🎯 PHASE 4: Search Bar - Only shows when nodes exist */}
             {nodes.length > 0 && (
-              <div className="absolute top-3 left-3 z-10">
+              <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                 <input
                   type="text"
                   value={searchQuery}
@@ -95,6 +95,15 @@ export default function ArchitectureCanvas({
                   placeholder="🔍 Search nodes..."
                   className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-64"
                 />
+                {/* PHASE 5: Zoom Level & Node Count */}
+                <div className="flex gap-2">
+                  <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-xs font-medium text-gray-700">
+                    🔍 {Math.round((instance?.transformState.scale || 1) * 100)}%
+                  </div>
+                  <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-xs font-medium text-gray-700">
+                    📊 {nodes.length} nodes • {edges.length} connections
+                  </div>
+                </div>
               </div>
             )}
 
@@ -177,12 +186,20 @@ export default function ArchitectureCanvas({
           const curveVariation = Math.sin(i * 0.5) * 15; // Add organic curve
           const path = `M ${src.cx} ${src.cy} Q ${midX + curveVariation} ${midY} ${tgt.cx} ${tgt.cy}`;
           
+          // 🎯 PHASE 5: Connection strength based on type
+          const srcNode = nodes.find(n => n.id === e.source);
+          const tgtNode = nodes.find(n => n.id === e.target);
+          const isImportant = 
+            (srcNode?.label.includes("GATEWAY") || tgtNode?.label.includes("GATEWAY")) ||
+            (srcNode?.label.includes("DATABASE") || tgtNode?.label.includes("DATABASE"));
+          const strokeWidth = isImportant ? 3.5 : 2.5;
+          
           return (
             <path
               key={i}
               d={path}
               stroke="#2563eb"
-              strokeWidth={2.5}
+              strokeWidth={strokeWidth}
               fill="none"
               strokeLinecap="round"
               markerEnd="url(#arrowhead)"
@@ -211,16 +228,17 @@ export default function ArchitectureCanvas({
         </defs>
       </svg>
 
-      {/* 🎯 NODES LAYER: Component boxes with search highlighting */}
+      {/* 🎯 NODES LAYER: Component boxes with search highlighting + PHASE 5 tooltips */}
       {nodes.map((n, index) => {
         const isHighlighted = isNodeHighlighted(n);
         const isFiltered = searchQuery.trim() && !isHighlighted;
+        const connectionCount = edges.filter(e => e.source === n.id || e.target === n.id).length;
         
         return (
           <div
             key={n.id}
             onClick={() => setSelectedNode(n)}
-            className={`absolute flex flex-col items-center bg-white border-2 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all cursor-pointer ${
+            className={`absolute flex flex-col items-center bg-white border-2 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all cursor-pointer group ${
               isHighlighted 
                 ? 'border-yellow-400 ring-4 ring-yellow-300/50 scale-110 shadow-xl' 
                 : 'border-gray-200 hover:scale-110 hover:shadow-xl hover:border-blue-400'
@@ -231,10 +249,14 @@ export default function ArchitectureCanvas({
               animation: `fadeInUp 0.6s ease forwards`,
               animationDelay: `${index * 0.05}s`,
             }}
-            title="Click for details"
+            title={`${n.label} • ${connectionCount} connections • Click for details`}
           >
             <div className="text-xl mb-1">{getIcon(n.label)}</div>
             {n.label}
+            {/* PHASE 5: Hover tooltip */}
+            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+              {connectionCount} connections
+            </div>
           </div>
         );
       })}

@@ -139,6 +139,25 @@ export default function GenerateAIClient() {
     }
   }, [state.loadingState.loading, state.architecture.explanations]);
 
+  // 🎯 PHASE 5: Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enter to generate (if prompt exists and not loading)
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && state.prompt.trim() && !state.loadingState.loading) {
+        handleGenerate();
+      }
+      // Ctrl+E to export
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e' && state.architecture.nodes.length > 0) {
+        e.preventDefault();
+        exportDesign();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.prompt, state.loadingState.loading, state.architecture]);
+
   // 🎯 HANDLER: Export Design as JSON
   const exportDesign = () => {
     const data = { 
