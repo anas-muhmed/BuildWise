@@ -31,14 +31,14 @@ export default function Toolbar({ prompt, setPrompt, onGenerate, loading, onLoad
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         className="flex-1 px-4 py-2.5 border border-blue-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white/80 backdrop-blur-sm transition-all"
-        placeholder="Describe your application (e.g. food delivery, chat app)"
+        placeholder="Describe your system (e.g., scalable food delivery app, SaaS dashboard, e-commerce platform)"
       />
 
-      {/* Generate Button with gradient */}
+      {/* Generate Button with gradient - More dominant with enhanced glow */}
       <button
         onClick={onGenerate}
         disabled={loading}
-        className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all hover:scale-105 active:scale-95"
+        className="px-8 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-xl shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-base transition-all hover:scale-110 hover:shadow-2xl hover:shadow-blue-500/60 active:scale-95 animate-pulse-glow"
       >
         {loading ? "🧠 Generating..." : "✨ Generate Design"}
       </button>

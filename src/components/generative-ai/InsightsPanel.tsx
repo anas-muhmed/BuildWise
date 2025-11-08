@@ -72,24 +72,40 @@ export default function InsightsPanel({
 
   return (
     <div className="sticky top-6 bg-gradient-to-br from-white to-blue-50/30 border rounded-xl shadow-lg p-5 h-[520px] flex flex-col">
-      {/* 🎯 TAB NAVIGATION with AI branding */}
+      {/* 🎯 TAB NAVIGATION with AI branding - Color-coded tabs */}
       <div className="flex gap-2 mb-4 border-b pb-2">
-        {(["overview", "best", "cost", "health"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-              activeTab === tab
-                ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105"
-                : "text-gray-600 hover:bg-gray-50 hover:scale-102"
-            }`}
-          >
-            {tab === "overview" && "🧠 Overview"}
-            {tab === "best" && "⚙️ Best Practices"}
-            {tab === "cost" && "💰 Cost"}
-            {tab === "health" && "📊 Health"}
-          </button>
-        ))}
+        {(["overview", "best", "cost", "health"] as const).map((tab) => {
+          // Color-specific gradients for each tab
+          const tabColors = {
+            overview: activeTab === tab 
+              ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50" 
+              : "text-blue-600 hover:bg-blue-50",
+            best: activeTab === tab 
+              ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg shadow-gray-500/50" 
+              : "text-gray-600 hover:bg-gray-50",
+            cost: activeTab === tab 
+              ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-lg shadow-amber-500/50" 
+              : "text-amber-600 hover:bg-amber-50",
+            health: activeTab === tab 
+              ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/50" 
+              : "text-green-600 hover:bg-green-50",
+          };
+          
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${tabColors[tab]} ${
+                activeTab === tab ? "scale-105" : "hover:scale-102"
+              }`}
+            >
+              {tab === "overview" && "🧠 Overview"}
+              {tab === "best" && "⚙️ Best Practices"}
+              {tab === "cost" && "💰 Cost"}
+              {tab === "health" && "📊 Health"}
+            </button>
+          );
+        })}
       </div>
 
       {/* 🎯 TAB CONTENT - Scrollable area */}
@@ -103,14 +119,29 @@ export default function InsightsPanel({
                 Generate an architecture to see AI insights...
               </li>
             ) : (
-              displayedText.map((text, idx) => (
-                <li key={idx} className="flex gap-3 items-start animate-fade-in">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold flex-shrink-0">
-                    {idx + 1}
-                  </div>
-                  <div className="text-sm text-gray-700 leading-relaxed">{text}</div>
-                </li>
-              ))
+              displayedText.map((text, idx) => {
+                // Assign contextual icons based on content keywords
+                const getIcon = (text: string) => {
+                  if (text.includes("database") || text.includes("storage")) return "💾";
+                  if (text.includes("cache") || text.includes("redis")) return "⚡";
+                  if (text.includes("gateway") || text.includes("API")) return "🚪";
+                  if (text.includes("service") || text.includes("microservice")) return "⚙️";
+                  if (text.includes("load balancer") || text.includes("traffic")) return "⚖️";
+                  if (text.includes("security") || text.includes("auth")) return "🔒";
+                  if (text.includes("user") || text.includes("client")) return "👤";
+                  if (text.includes("mobile") || text.includes("frontend")) return "📱";
+                  return "📦"; // Default for architecture components
+                };
+                
+                return (
+                  <li key={idx} className="flex gap-3 items-start animate-fade-in">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-lg flex-shrink-0">
+                      {getIcon(text.toLowerCase())}
+                    </div>
+                    <div className="text-sm text-gray-700 leading-relaxed flex-1">{text}</div>
+                  </li>
+                );
+              })
             )}
           </ul>
         )}
@@ -163,40 +194,40 @@ export default function InsightsPanel({
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr className="hover:bg-blue-50 transition-colors cursor-default">
                   <td className="p-2 border">Base Infrastructure</td>
                   <td className="p-2 border text-center">-</td>
                   <td className="p-2 border text-right">$0.01</td>
                 </tr>
                 {nodes.filter(n => n.label.includes("DATABASE")).length > 0 && (
-                  <tr>
+                  <tr className="hover:bg-blue-50 transition-colors cursor-default">
                     <td className="p-2 border">💾 Database</td>
                     <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("DATABASE")).length}</td>
                     <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("DATABASE")).length * 0.05).toFixed(3)}</td>
                   </tr>
                 )}
                 {nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length > 0 && (
-                  <tr>
+                  <tr className="hover:bg-blue-50 transition-colors cursor-default">
                     <td className="p-2 border">⚡ Cache</td>
                     <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length}</td>
                     <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length * 0.03).toFixed(3)}</td>
                   </tr>
                 )}
                 {nodes.filter(n => n.label.includes("SERVICE")).length > 0 && (
-                  <tr>
+                  <tr className="hover:bg-blue-50 transition-colors cursor-default">
                     <td className="p-2 border">⚙️ Microservices</td>
                     <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("SERVICE")).length}</td>
                     <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("SERVICE")).length * 0.02).toFixed(3)}</td>
                   </tr>
                 )}
                 {nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length > 0 && (
-                  <tr>
+                  <tr className="hover:bg-blue-50 transition-colors cursor-default">
                     <td className="p-2 border">🌐 Load Balancer/Gateway</td>
                     <td className="p-2 border text-center">{nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length}</td>
                     <td className="p-2 border text-right">${(nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length * 0.025).toFixed(3)}</td>
                   </tr>
                 )}
-                <tr>
+                <tr className="hover:bg-blue-50 transition-colors cursor-default">
                   <td className="p-2 border">🔗 Network Connections</td>
                   <td className="p-2 border text-center">{edgeCount}</td>
                   <td className="p-2 border text-right">${(edgeCount * 0.005).toFixed(3)}</td>
@@ -239,7 +270,7 @@ export default function InsightsPanel({
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {healthScores.speedScore >= 90 ? "Excellent - Optimized for high throughput" :
+                  {healthScores.speedScore >= 90 ? "Outstanding - Optimized for high throughput" :
                    healthScores.speedScore >= 70 ? "Good - Consider adding caching layer" :
                    "Needs improvement - Add load balancer and cache"}
                 </p>
@@ -258,7 +289,7 @@ export default function InsightsPanel({
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {healthScores.securityScore >= 90 ? "Excellent - Well-isolated microservices" :
+                  {healthScores.securityScore >= 90 ? "Very High - Well-isolated microservices" :
                    healthScores.securityScore >= 70 ? "Good - API Gateway present" :
                    "Needs improvement - Add API Gateway and service boundaries"}
                 </p>
@@ -277,7 +308,7 @@ export default function InsightsPanel({
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {healthScores.costScore >= 80 ? "Excellent - Cost-optimized architecture" :
+                  {healthScores.costScore >= 80 ? "Optimal - Cost-optimized architecture" :
                    healthScores.costScore >= 60 ? "Good - Reasonable resource allocation" :
                    "High cost - Consider serverless or managed services"}
                 </p>
