@@ -175,7 +175,7 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
               </div>
             </div>
 
-            {/* 🎯 TIER 1: Connection Mini-Graph Visual */}
+            {/* 🎯 TIER 1 + PHASE 4: Connection Mini-Graph (Responsive) */}
             {(incomingConnections.length > 0 || outgoingConnections.length > 0) && (
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -183,8 +183,14 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
                   <span>Connection Flow Diagram</span>
                 </h3>
                 
-                {/* SVG Mini-Graph */}
-                <svg width="100%" height="200" viewBox="0 0 400 200" className="bg-white rounded border">
+                {/* SVG Mini-Graph - PHASE 4: Responsive with preserveAspectRatio */}
+                <svg 
+                  width="100%" 
+                  height="200" 
+                  viewBox="0 0 400 200" 
+                  className="bg-white rounded border hidden md:block"
+                  preserveAspectRatio="xMidYMid meet"
+                >
                   {/* Define arrowhead marker */}
                   <defs>
                     <marker
@@ -327,7 +333,46 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
                   )}
                 </svg>
 
-                <p className="text-xs text-gray-500 mt-2 text-center">
+                {/* PHASE 4: Mobile-friendly stacked view */}
+                <div className="md:hidden space-y-3">
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-blue-900 mb-2">📥 Incoming Connections</h4>
+                    {incomingConnections.length > 0 ? (
+                      <ul className="space-y-1">
+                        {incomingConnections.map((conn, idx) => (
+                          <li key={idx} className="text-xs text-gray-700 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            {conn.toUpperCase()}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">None</p>
+                    )}
+                  </div>
+                  
+                  <div className="bg-indigo-100 rounded-lg p-3 border-2 border-indigo-400">
+                    <h4 className="text-xs font-semibold text-indigo-900 text-center">{node.label}</h4>
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-green-900 mb-2">📤 Outgoing Connections</h4>
+                    {outgoingConnections.length > 0 ? (
+                      <ul className="space-y-1">
+                        {outgoingConnections.map((conn, idx) => (
+                          <li key={idx} className="text-xs text-gray-700 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                            {conn.toUpperCase()}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">None</p>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-2 text-center hidden md:block">
                   Blue arrows = incoming data | Green arrows = outgoing data
                 </p>
               </div>

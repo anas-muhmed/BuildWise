@@ -34,6 +34,9 @@ export default function ArchitectureCanvas({
   // 🎯 NEW: Modal state management
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
+  // 🎯 PHASE 4: Search/filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  
   // 🎯 LEARNING: useMemo for Performance
   // This only recalculates when 'nodes' array changes
   // Prevents unnecessary calculations on every render
@@ -42,6 +45,13 @@ export default function ArchitectureCanvas({
     nodes.forEach((n) => map.set(n.id, { cx: n.x + 60, cy: n.y + 20 }));
     return map;
   }, [nodes]);
+  
+  // 🎯 PHASE 4: Check if node matches search
+  const isNodeHighlighted = (node: Node) => {
+    if (!searchQuery.trim()) return false;
+    return node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           node.id.toLowerCase().includes(searchQuery.toLowerCase());
+  };
 
   // 🎯 LEARNING: Helper Function
   // Pure function - no side effects, just returns icon based on label
@@ -75,6 +85,19 @@ export default function ArchitectureCanvas({
       >
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
+            {/* 🎯 PHASE 4: Search Bar - Only shows when nodes exist */}
+            {nodes.length > 0 && (
+              <div className="absolute top-3 left-3 z-10">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="🔍 Search nodes..."
+                  className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-64"
+                />
+              </div>
+            )}
+
             {/* 🎯 CONDITIONAL RENDERING: Floating Toolbar - Only shows when nodes exist */}
             {nodes.length > 0 && (
               <div className="absolute top-3 right-3 flex gap-2 bg-white/80 backdrop-blur-md px-3 py-2 rounded-lg shadow-md border z-10">
@@ -130,16 +153,29 @@ export default function ArchitectureCanvas({
               wrapperStyle={{ width: "100%", height: "100%" }}
               contentStyle={{ width: "100%", height: "100%" }}
             >
-              {/* 🎯 SVG LAYER: Edges (connections between nodes) */}
+              {/* 🎯 SVG LAYER: Edges with auto-layout offset for parallel connections */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {edges.map((e, i) => {
           const src = nodeCenters.get(e.source);
           const tgt = nodeCenters.get(e.target);
           if (!src || !tgt) return null;
           
-          // 🎯 LEARNING: Quadratic Bezier Curve for smooth connections
+          // 🎯 PHASE 4: Detect parallel edges and apply offset
+          const parallelEdges = edges.filter(edge => 
+            (edge.source === e.source && edge.target === e.target) ||
+            (edge.source === e.target && edge.target === e.source)
+          );
+          const parallelIndex = parallelEdges.findIndex(edge => 
+            edge.source === e.source && edge.target === e.target
+          );
+          const isParallel = parallelEdges.length > 1;
+          const offset = isParallel ? (parallelIndex - 0.5) * 30 : 0;
+          
+          // 🎯 LEARNING: Quadratic Bezier Curve with dynamic offset
           const midX = (src.cx + tgt.cx) / 2;
-          const path = `M ${src.cx} ${src.cy} Q ${midX} ${(src.cy + tgt.cy) / 2} ${tgt.cx} ${tgt.cy}`;
+          const midY = (src.cy + tgt.cy) / 2 + offset;
+          const curveVariation = Math.sin(i * 0.5) * 15; // Add organic curve
+          const path = `M ${src.cx} ${src.cy} Q ${midX + curveVariation} ${midY} ${tgt.cx} ${tgt.cy}`;
           
           return (
             <path
@@ -175,25 +211,33 @@ export default function ArchitectureCanvas({
         </defs>
       </svg>
 
-      {/* 🎯 NODES LAYER: Component boxes */}
-      {nodes.map((n, index) => (
-        <div
-          key={n.id}
-          onClick={() => setSelectedNode(n)}
-          className="absolute flex flex-col items-center bg-white border-2 border-gray-200 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all hover:scale-110 hover:shadow-xl hover:border-blue-400 cursor-pointer"
-          style={{
-            left: n.x,
-            top: n.y,
-            animation: `fadeInUp 0.6s ease forwards`,
-            animationDelay: `${index * 0.05}s`,
-            opacity: 0,
-          }}
-          title="Click for details"
-        >
-          <div className="text-xl mb-1">{getIcon(n.label)}</div>
-          {n.label}
-        </div>
-      ))}
+      {/* 🎯 NODES LAYER: Component boxes with search highlighting */}
+      {nodes.map((n, index) => {
+        const isHighlighted = isNodeHighlighted(n);
+        const isFiltered = searchQuery.trim() && !isHighlighted;
+        
+        return (
+          <div
+            key={n.id}
+            onClick={() => setSelectedNode(n)}
+            className={`absolute flex flex-col items-center bg-white border-2 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all cursor-pointer ${
+              isHighlighted 
+                ? 'border-yellow-400 ring-4 ring-yellow-300/50 scale-110 shadow-xl' 
+                : 'border-gray-200 hover:scale-110 hover:shadow-xl hover:border-blue-400'
+            } ${isFiltered ? 'opacity-30' : 'opacity-100'}`}
+            style={{
+              left: n.x,
+              top: n.y,
+              animation: `fadeInUp 0.6s ease forwards`,
+              animationDelay: `${index * 0.05}s`,
+            }}
+            title="Click for details"
+          >
+            <div className="text-xl mb-1">{getIcon(n.label)}</div>
+            {n.label}
+          </div>
+        );
+      })}
 
       {/* 🎯 EMPTY STATE: Shows when no architecture generated */}
       {nodes.length === 0 && !loading && (

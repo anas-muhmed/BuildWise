@@ -11,7 +11,7 @@ interface InsightsPanelProps {
   displayedText: string[];
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
-  nodeCount: number;
+  nodeCount?: number; // Optional since we calculate from nodes.length
   edgeCount: number;
   nodes: Node[];  // 🎯 TIER 1: Need actual nodes for type-specific pricing
 }
@@ -20,10 +20,12 @@ export default function InsightsPanel({
   displayedText,
   activeTab,
   setActiveTab,
-  nodeCount,
   edgeCount,
   nodes,
 }: InsightsPanelProps) {
+  
+  // 🎯 PHASE 4: Monthly/Hourly toggle state
+  const [costView, setCostView] = React.useState<"hourly" | "monthly">("monthly");
   
   // 🎯 TIER 1 + PHASE 2: Enhanced Cost Calculation with More Realistic Rates
   const calculateEnhancedCost = () => {
@@ -197,9 +199,41 @@ export default function InsightsPanel({
         {activeTab === "cost" && (
           <div className="text-sm text-gray-700 animate-fadeIn">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="font-semibold text-blue-900">💰 Estimated Monthly Cost</p>
-              <p className="text-2xl font-bold text-blue-700 mt-1">${(parseFloat(calculateCost()) * 730).toFixed(2)}</p>
-              <p className="text-xs text-blue-600 mt-1">Based on AWS us-east-1 pricing</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-semibold text-blue-900">💰 Estimated Cost</p>
+                {/* PHASE 4: Toggle Switch */}
+                <div className="flex items-center gap-2 bg-white rounded-full p-1 shadow-sm">
+                  <button
+                    onClick={() => setCostView("hourly")}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      costView === "hourly"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-gray-600 hover:text-blue-600"
+                    }`}
+                  >
+                    Hourly
+                  </button>
+                  <button
+                    onClick={() => setCostView("monthly")}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      costView === "monthly"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-gray-600 hover:text-blue-600"
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-blue-700 mt-1">
+                {costView === "hourly" 
+                  ? `$${calculateCost()}/hr`
+                  : `$${(parseFloat(calculateCost()) * 730).toFixed(2)}/mo`
+                }
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Based on AWS us-east-1 pricing {costView === "monthly" && "(730 hrs/month)"}
+              </p>
             </div>
 
             <table className="w-full mt-3 border text-xs">
@@ -260,6 +294,94 @@ export default function InsightsPanel({
             <p className="text-xs text-gray-500 mt-3">
               * Estimates include compute, storage, and data transfer. Actual costs may vary based on usage patterns.
             </p>
+
+            {/* PHASE 4: Cost Breakdown Graph */}
+            <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-lg p-4 mt-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">📊 Cost Distribution</h3>
+              {(() => {
+                const dbCost = nodes.filter(n => n.label.includes("DATABASE")).length * 0.035;
+                const cacheCost = nodes.filter(n => n.label.includes("CACHE") || n.label.includes("REDIS")).length * 0.02;
+                const serviceCost = nodes.filter(n => n.label.includes("SERVICE")).length * 0.012;
+                const lbCost = nodes.filter(n => n.label.includes("LOAD BALANCER") || n.label.includes("GATEWAY")).length * 0.025;
+                const networkCost = edgeCount * 0.005;
+                const totalCost = parseFloat(calculateCost());
+                
+                return (
+                  <div className="space-y-2">
+                    {dbCost > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-700">💾 Database</span>
+                          <span className="font-medium text-gray-800">${(costView === "hourly" ? dbCost : dbCost * 730).toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(dbCost / totalCost) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {cacheCost > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-700">⚡ Cache</span>
+                          <span className="font-medium text-gray-800">${(costView === "hourly" ? cacheCost : cacheCost * 730).toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(cacheCost / totalCost) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {serviceCost > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-700">⚙️ Services</span>
+                          <span className="font-medium text-gray-800">${(costView === "hourly" ? serviceCost : serviceCost * 730).toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(serviceCost / totalCost) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {lbCost > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-700">🌐 Load Balancer</span>
+                          <span className="font-medium text-gray-800">${(costView === "hourly" ? lbCost : lbCost * 730).toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-orange-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(lbCost / totalCost) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {networkCost > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-700">🔗 Network</span>
+                          <span className="font-medium text-gray-800">${(costView === "hourly" ? networkCost : networkCost * 730).toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-gray-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${(networkCost / totalCost) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
