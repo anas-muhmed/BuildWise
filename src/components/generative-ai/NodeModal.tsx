@@ -113,10 +113,11 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
           {/* Content */}
           <div className="p-6 space-y-6">
             
-            {/* Role Section */}
+            {/* Role Section with Icon */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                🎯 Role & Purpose
+                <span className="text-2xl">🎯</span>
+                <span>Role & Purpose</span>
               </h3>
               <p className="text-gray-600 leading-relaxed">
                 {getRoleDescription(node.label)}
@@ -170,7 +171,8 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
             {(incomingConnections.length > 0 || outgoingConnections.length > 0) && (
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  🔗 Connection Flow Diagram
+                  <span className="text-lg">🔗</span>
+                  <span>Connection Flow Diagram</span>
                 </h3>
                 
                 {/* SVG Mini-Graph */}
@@ -323,10 +325,11 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
               </div>
             )}
 
-            {/* Best Practices */}
+            {/* Best Practices with Icon */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                ⚙️ Best Practices
+                <span className="text-2xl">⚙️</span>
+                <span>Best Practices</span>
               </h3>
               <ul className="space-y-2">
                 {getBestPractices(node.label).map((practice, idx) => (

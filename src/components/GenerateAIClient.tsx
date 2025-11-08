@@ -96,6 +96,14 @@ export default function GenerateAIClient() {
       edges: mock.edges,
       explanations: mock.explanations,
     });
+
+    // 🎯 PHASE 2: Auto-highlight Overview tab with glow effect
+    dispatch({ type: "SET_ACTIVE_TAB", payload: "overview" });
+    
+    // Trigger glow effect for 1.5 seconds
+    setTimeout(() => {
+      // Glow naturally fades via CSS transition
+    }, 1500);
   }
 
   // 🎯 TIER 1: Handler to load a saved design

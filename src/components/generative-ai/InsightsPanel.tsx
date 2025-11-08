@@ -25,22 +25,22 @@ export default function InsightsPanel({
   nodes,
 }: InsightsPanelProps) {
   
-  // 🎯 TIER 1: Enhanced Cost Calculation with Node-Type-Specific Rates
+  // 🎯 TIER 1 + PHASE 2: Enhanced Cost Calculation with More Realistic Rates
   const calculateEnhancedCost = () => {
-    let totalCost = 0.01; // Base infrastructure
+    let totalCost = 0.005; // Reduced base infrastructure
     
-    // Node-specific pricing based on component type
+    // Node-specific pricing based on component type (adjusted to realistic AWS pricing)
     nodes.forEach((node) => {
       const label = node.label.toUpperCase();
-      if (label.includes("DATABASE")) totalCost += 0.05; // $0.05/hr = ~$36/mo
-      else if (label.includes("CACHE") || label.includes("REDIS")) totalCost += 0.03; // $22/mo
-      else if (label.includes("LOAD BALANCER") || label.includes("GATEWAY")) totalCost += 0.025;
-      else if (label.includes("SERVICE")) totalCost += 0.02; // Microservices
-      else totalCost += 0.015; // Generic components
+      if (label.includes("DATABASE")) totalCost += 0.035; // $0.035/hr = ~$25/mo (realistic RDS)
+      else if (label.includes("CACHE") || label.includes("REDIS")) totalCost += 0.02; // ~$15/mo (ElastiCache)
+      else if (label.includes("LOAD BALANCER") || label.includes("GATEWAY")) totalCost += 0.018; // ~$13/mo (ALB)
+      else if (label.includes("SERVICE")) totalCost += 0.012; // ~$9/mo (ECS/Lambda)
+      else totalCost += 0.008; // Generic compute (EC2 t3.micro)
     });
     
-    // Network costs (connections)
-    totalCost += edgeCount * 0.005;
+    // Network costs (connections) - reduced to realistic data transfer rates
+    totalCost += edgeCount * 0.002;
     
     return totalCost;
   };
@@ -108,12 +108,12 @@ export default function InsightsPanel({
         })}
       </div>
 
-      {/* 🎯 TAB CONTENT - Scrollable area */}
+      {/* 🎯 TAB CONTENT - Scrollable area with fade transition */}
       <div className="overflow-auto flex-1">
         
         {/* OVERVIEW TAB: AI-generated explanations */}
         {activeTab === "overview" && (
-          <ul className="space-y-4">
+          <ul className="space-y-4 animate-fadeIn">
             {displayedText.length === 0 ? (
               <li className="text-sm text-gray-500 italic">
                 Generate an architecture to see AI insights...
@@ -148,7 +148,7 @@ export default function InsightsPanel({
 
         {/* BEST PRACTICES TAB: Static recommendations */}
         {activeTab === "best" && (
-          <ul className="space-y-3 text-sm text-gray-700">
+          <ul className="space-y-3 text-sm text-gray-700 animate-fadeIn">
             <li className="flex items-start gap-2">
               <span className="text-green-600">✅</span>
               <span>Use rate limiting in API Gateway to prevent abuse and DDoS attacks.</span>
@@ -178,7 +178,7 @@ export default function InsightsPanel({
 
         {/* COST VIEW TAB: Enhanced dynamic calculation with node-type rates */}
         {activeTab === "cost" && (
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-gray-700 animate-fadeIn">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="font-semibold text-blue-900">💰 Estimated Monthly Cost</p>
               <p className="text-2xl font-bold text-blue-700 mt-1">${(parseFloat(calculateCost()) * 730).toFixed(2)}</p>
@@ -248,7 +248,7 @@ export default function InsightsPanel({
 
         {/* HEALTH SCORE TAB: AI-powered architecture analysis */}
         {activeTab === "health" && (
-          <div className="text-sm space-y-4">
+          <div className="text-sm space-y-4 animate-fadeIn">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 📊 Architecture Health Score
@@ -261,11 +261,18 @@ export default function InsightsPanel({
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium text-gray-700">⚡ Speed & Performance</span>
-                  <span className="text-xs font-bold text-blue-600">{healthScores.speedScore}/100</span>
+                  <span className={`text-xs font-bold ${
+                    healthScores.speedScore >= 80 ? 'text-green-600' : 
+                    healthScores.speedScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>{healthScores.speedScore}/100</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-gradient-to-r from-green-400 to-green-600 h-2.5 rounded-full transition-all duration-500"
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      healthScores.speedScore >= 80 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                      healthScores.speedScore >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      'bg-gradient-to-r from-red-400 to-red-600'
+                    }`}
                     style={{ width: `${healthScores.speedScore}%` }}
                   />
                 </div>
@@ -280,11 +287,18 @@ export default function InsightsPanel({
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium text-gray-700">🔒 Security & Isolation</span>
-                  <span className="text-xs font-bold text-indigo-600">{healthScores.securityScore}/100</span>
+                  <span className={`text-xs font-bold ${
+                    healthScores.securityScore >= 80 ? 'text-green-600' : 
+                    healthScores.securityScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>{healthScores.securityScore}/100</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-gradient-to-r from-indigo-400 to-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      healthScores.securityScore >= 80 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                      healthScores.securityScore >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      'bg-gradient-to-r from-red-400 to-red-600'
+                    }`}
                     style={{ width: `${healthScores.securityScore}%` }}
                   />
                 </div>
@@ -299,11 +313,18 @@ export default function InsightsPanel({
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium text-gray-700">💰 Cost Efficiency</span>
-                  <span className="text-xs font-bold text-purple-600">{healthScores.costScore.toFixed(0)}/100</span>
+                  <span className={`text-xs font-bold ${
+                    healthScores.costScore >= 80 ? 'text-green-600' : 
+                    healthScores.costScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>{healthScores.costScore.toFixed(0)}/100</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-gradient-to-r from-purple-400 to-purple-600 h-2.5 rounded-full transition-all duration-500"
+                    className={`h-2.5 rounded-full transition-all duration-500 ${
+                      healthScores.costScore >= 80 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                      healthScores.costScore >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      'bg-gradient-to-r from-red-400 to-red-600'
+                    }`}
                     style={{ width: `${healthScores.costScore}%` }}
                   />
                 </div>
@@ -337,14 +358,21 @@ export default function InsightsPanel({
         )}
       </div>
 
-      {/* 🎯 CSS ANIMATION */}
+      {/* 🎯 CSS ANIMATIONS */}
       <style jsx>{`
         .animate-fade-in {
           animation: fadeIn 0.6s ease forwards;
         }
+        .animate-fadeIn {
+          animation: fadeInTab 0.3s ease-in-out;
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInTab {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </div>

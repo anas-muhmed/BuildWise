@@ -26,11 +26,12 @@ export default function Toolbar({ prompt, setPrompt, onGenerate, loading, onLoad
   
   return (
     <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-100 rounded-lg p-4 flex gap-3 items-center shadow-md mb-4">
-      {/* Input Field with enhanced styling */}
+      {/* Input Field with enhanced styling - Disabled during generation */}
       <input
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        className="flex-1 px-4 py-2.5 border border-blue-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white/80 backdrop-blur-sm transition-all"
+        disabled={loading}
+        className="flex-1 px-4 py-2.5 border border-blue-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white/80 backdrop-blur-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         placeholder="Describe your system (e.g., scalable food delivery app, SaaS dashboard, e-commerce platform)"
       />
 
