@@ -13,6 +13,9 @@ import { appReducer, initialState } from "@/lib/reducer";
 // 🎯 NEW: Import mock generator utility (moved from this file!)
 import { generateMockFromPrompt } from "@/lib/mockGenerator";
 
+// 🎯 TIER 1: Import localStorage utilities
+import { saveDesign, SavedDesign } from "@/lib/localStorage";
+
 // 🎯 LEARNING: Main component is now a "Container Component"
 // It manages STATE and LOGIC, but delegates RENDERING to child components
 export default function GenerateAIClient() {
@@ -85,6 +88,30 @@ export default function GenerateAIClient() {
         explanations: mock.explanations
       }
     });
+
+    // 🎯 TIER 1: Auto-save to localStorage after successful generation
+    saveDesign({
+      prompt: state.prompt,
+      nodes: mock.nodes,
+      edges: mock.edges,
+      explanations: mock.explanations,
+    });
+  }
+
+  // 🎯 TIER 1: Handler to load a saved design
+  function handleLoadDesign(design: SavedDesign) {
+    // Update prompt
+    dispatch({ type: "SET_PROMPT", payload: design.prompt });
+    
+    // Load the architecture
+    dispatch({
+      type: "GENERATE_SUCCESS",
+      payload: {
+        nodes: design.nodes,
+        edges: design.edges,
+        explanations: design.explanations,
+      },
+    });
   }
 
   // 🎯 EFFECT: Typing animation for explanations
@@ -135,6 +162,7 @@ export default function GenerateAIClient() {
           setPrompt={(value) => dispatch({ type: "SET_PROMPT", payload: value })}
           onGenerate={handleGenerate}
           loading={state.loadingState.loading}
+          onLoadDesign={handleLoadDesign}
         />
 
         {/* 🎯 Canvas Component - Handles all diagram rendering */}

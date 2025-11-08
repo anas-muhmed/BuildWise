@@ -166,6 +166,163 @@ export default function NodeModal({ node, edges, onClose }: NodeModalProps) {
               </div>
             </div>
 
+            {/* 🎯 TIER 1: Connection Mini-Graph Visual */}
+            {(incomingConnections.length > 0 || outgoingConnections.length > 0) && (
+              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  🔗 Connection Flow Diagram
+                </h3>
+                
+                {/* SVG Mini-Graph */}
+                <svg width="100%" height="200" viewBox="0 0 400 200" className="bg-white rounded border">
+                  {/* Define arrowhead marker */}
+                  <defs>
+                    <marker
+                      id="arrowhead-mini"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+                    </marker>
+                  </defs>
+
+                  {/* Draw incoming connections (top section) */}
+                  {incomingConnections.slice(0, 3).map((conn, idx) => {
+                    const x = 50 + idx * 110;
+                    const y = 30;
+                    return (
+                      <g key={`in-${idx}`}>
+                        {/* Incoming node box */}
+                        <rect
+                          x={x}
+                          y={y}
+                          width="90"
+                          height="30"
+                          rx="4"
+                          fill="#dbeafe"
+                          stroke="#3b82f6"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={x + 45}
+                          y={y + 18}
+                          fontSize="10"
+                          fill="#1e40af"
+                          textAnchor="middle"
+                          fontWeight="500"
+                        >
+                          {conn.substring(0, 12).toUpperCase()}
+                        </text>
+                        
+                        {/* Arrow down to center node */}
+                        <line
+                          x1={x + 45}
+                          y1={y + 30}
+                          x2={200}
+                          y2={90}
+                          stroke="#2563eb"
+                          strokeWidth="2"
+                          markerEnd="url(#arrowhead-mini)"
+                        />
+                      </g>
+                    );
+                  })}
+
+                  {/* Center node (selected node) */}
+                  <rect
+                    x="130"
+                    y="90"
+                    width="140"
+                    height="40"
+                    rx="6"
+                    fill="#3b82f6"
+                    stroke="#1e40af"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x="200"
+                    y="110"
+                    fontSize="12"
+                    fill="white"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    {node.label}
+                  </text>
+                  <text
+                    x="200"
+                    y="122"
+                    fontSize="8"
+                    fill="#dbeafe"
+                    textAnchor="middle"
+                  >
+                    (You are here)
+                  </text>
+
+                  {/* Draw outgoing connections (bottom section) */}
+                  {outgoingConnections.slice(0, 3).map((conn, idx) => {
+                    const x = 50 + idx * 110;
+                    const y = 160;
+                    return (
+                      <g key={`out-${idx}`}>
+                        {/* Arrow from center to outgoing node */}
+                        <line
+                          x1={200}
+                          y1={130}
+                          x2={x + 45}
+                          y2={y}
+                          stroke="#10b981"
+                          strokeWidth="2"
+                          markerEnd="url(#arrowhead-mini)"
+                        />
+                        
+                        {/* Outgoing node box */}
+                        <rect
+                          x={x}
+                          y={y}
+                          width="90"
+                          height="30"
+                          rx="4"
+                          fill="#d1fae5"
+                          stroke="#10b981"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={x + 45}
+                          y={y + 18}
+                          fontSize="10"
+                          fill="#047857"
+                          textAnchor="middle"
+                          fontWeight="500"
+                        >
+                          {conn.substring(0, 12).toUpperCase()}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Show "+" if more than 3 connections */}
+                  {incomingConnections.length > 3 && (
+                    <text x="370" y="50" fontSize="10" fill="#6b7280">
+                      +{incomingConnections.length - 3} more
+                    </text>
+                  )}
+                  {outgoingConnections.length > 3 && (
+                    <text x="370" y="175" fontSize="10" fill="#6b7280">
+                      +{outgoingConnections.length - 3} more
+                    </text>
+                  )}
+                </svg>
+
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Blue arrows = incoming data | Green arrows = outgoing data
+                </p>
+              </div>
+            )}
+
             {/* Best Practices */}
             <div>
               <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">

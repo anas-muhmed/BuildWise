@@ -1,8 +1,9 @@
 // components/generative-ai/ArchitectureCanvas.tsx
 "use client";
 import React, { useMemo, useState } from "react";
-import { FiRefreshCcw, FiDownload, FiCpu, FiTrash2 } from "react-icons/fi";
+import { FiRefreshCcw, FiDownload, FiCpu, FiTrash2, FiZoomIn, FiZoomOut } from "react-icons/fi";
 import { FaDatabase, FaBolt, FaCogs, FaNetworkWired } from "react-icons/fa";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import NodeModal from "./NodeModal";
 
 // 🎯 LEARNING: Type Definitions
@@ -62,34 +63,74 @@ export default function ArchitectureCanvas({
         backgroundSize: "32px 32px, 32px 32px",
       }}
     >
-      {/* 🎯 CONDITIONAL RENDERING: Floating Toolbar - Only shows when nodes exist */}
-      {nodes.length > 0 && (
-        <div className="absolute top-3 right-3 flex gap-2 bg-white/80 backdrop-blur-md px-3 py-2 rounded-lg shadow-md border">
-          <button 
-            title="Regenerate" 
-            onClick={onRegenerate} 
-            className="hover:text-blue-600 transition-colors"
-          >
-            <FiRefreshCcw size={18} />
-          </button>
-          <button 
-            title="Export JSON" 
-            onClick={onExport} 
-            className="hover:text-green-600 transition-colors"
-          >
-            <FiDownload size={18} />
-          </button>
-          <button 
-            title="Clear" 
-            onClick={onClear} 
-            className="hover:text-red-600 transition-colors"
-          >
-            <FiTrash2 size={18} />
-          </button>
-        </div>
-      )}
+      {/* 🎯 LEARNING: TransformWrapper - Enables zoom & pan functionality */}
+      {/* This wraps our canvas and provides zoom/pan controls */}
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.5}
+        maxScale={3}
+        centerOnInit
+        wheel={{ step: 0.1 }}
+        doubleClick={{ disabled: true }}
+      >
+        {({ zoomIn, zoomOut, resetTransform }) => (
+          <>
+            {/* 🎯 CONDITIONAL RENDERING: Floating Toolbar - Only shows when nodes exist */}
+            {nodes.length > 0 && (
+              <div className="absolute top-3 right-3 flex gap-2 bg-white/80 backdrop-blur-md px-3 py-2 rounded-lg shadow-md border z-10">
+                {/* 🎯 NEW: Zoom Controls */}
+                <button 
+                  title="Zoom In" 
+                  onClick={() => zoomIn()} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  <FiZoomIn size={18} />
+                </button>
+                <button 
+                  title="Zoom Out" 
+                  onClick={() => zoomOut()} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  <FiZoomOut size={18} />
+                </button>
+                <button 
+                  title="Reset View" 
+                  onClick={() => resetTransform()} 
+                  className="hover:text-purple-600 transition-colors"
+                >
+                  <FiRefreshCcw size={18} />
+                </button>
+                <div className="border-l border-gray-300 mx-1"></div>
+                <button 
+                  title="Regenerate Design" 
+                  onClick={onRegenerate} 
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  <FiRefreshCcw size={18} />
+                </button>
+                <button 
+                  title="Export JSON" 
+                  onClick={onExport} 
+                  className="hover:text-green-600 transition-colors"
+                >
+                  <FiDownload size={18} />
+                </button>
+                <button 
+                  title="Clear" 
+                  onClick={onClear} 
+                  className="hover:text-red-600 transition-colors"
+                >
+                  <FiTrash2 size={18} />
+                </button>
+              </div>
+            )}
 
-      {/* 🎯 SVG LAYER: Edges (connections between nodes) */}
+            {/* 🎯 TransformComponent - The zoomable/pannable area */}
+            <TransformComponent
+              wrapperStyle={{ width: "100%", height: "100%" }}
+              contentStyle={{ width: "100%", height: "100%" }}
+            >
+              {/* 🎯 SVG LAYER: Edges (connections between nodes) */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {edges.map((e, i) => {
           const src = nodeCenters.get(e.source);
@@ -221,6 +262,11 @@ export default function ArchitectureCanvas({
         }
         }
       `}</style>
+
+            </TransformComponent>
+          </>
+        )}
+      </TransformWrapper>
 
       {/* 🎯 NODE DETAILS MODAL: Shows when a node is clicked */}
       {selectedNode && (
