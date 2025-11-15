@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { Design } from "@/lib/backend/models/Design";
-import { requireAuth } from "@/lib/backend/authMiddleware";
+import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function GET(
   req: Request,
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Step 1: Authenticate user (using middleware!)
-    const authResult = requireAuth(req);
+    const authResult = getAuthUser(req);
     
     // Step 2: Check if it's an error response
     if (authResult instanceof NextResponse) {
