@@ -38,6 +38,9 @@ const DesignSchema = new Schema<IDesign>({
   timestamps: true 
 });
 
+// Create index for fast queries
+DesignSchema.index({ userId: 1, createdAt: -1 });
+
 // Step 3: Export model
 export const Design: Model<IDesign> = 
   mongoose.models.Design || mongoose.model<IDesign>("Design", DesignSchema);
