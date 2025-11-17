@@ -1,11 +1,11 @@
 // app/api/design/get/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { Design } from "@/lib/backend/models/Design";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -39,6 +39,14 @@ export async function GET(
     if (!design) {
       return NextResponse.json(
         { error: "Design not found" }, 
+        { status: 404 }
+      );
+    }
+
+    // Check if design is deleted
+    if (design.deleted === true && user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Design not found" }, // Don't reveal it's deleted
         { status: 404 }
       );
     }

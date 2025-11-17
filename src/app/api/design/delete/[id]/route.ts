@@ -21,13 +21,10 @@ export async function DELETE(
   if (!id || id.length !== 24) {
     return NextResponse.json({ error: "invalid design ID" }, { status: 400 });
   }
-  try{
-    const design=await Design.findById(id);
-     if (!design) {
-      return NextResponse.json(
-        { error: "Design not found" },
-        { status: 404 }
-      );
+  try {
+    const design = await Design.findById(id);
+    if (!design) {
+      return NextResponse.json({ error: "Design not found" }, { status: 404 });
     }
     const isOwner = design.userId.toString() === user.id;
     const isAdmin = user.role === "admin";
@@ -38,9 +35,23 @@ export async function DELETE(
         { status: 403 }
       );
     }
-    await Design.findByIdAndDelete(id);
 
-        return NextResponse.json(
+    // ✅ SOFT DELETE: Mark as deleted instead of destroying data
+    design.deleted = true;
+    await design.save();
+
+    // Log admin action if admin deleted it
+    if (user.role === "admin") {
+      await AdminLog.create({
+        adminId: user.id,
+        designId: id,
+        action: "soft-delete",
+        ip: req.headers.get("x-forwarded-for") || "unknown",
+        userAgent: req.headers.get("user-agent") || "",
+      });
+    }
+
+    return NextResponse.json(
       {
         success: true,
         message: "Design deleted successfully",
@@ -48,12 +59,11 @@ export async function DELETE(
       },
       { status: 200 }
     );
-
-  }catch(error){
-    console.error("Error deleting design:",error);
+  } catch (error) {
+    console.error("Error deleting design:", error);
     return NextResponse.json(
-        {error:"Failed to delete design"},
-        {status:500}
+      { error: "Failed to delete design" },
+      { status: 500 }
     );
   }
 }

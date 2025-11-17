@@ -24,17 +24,19 @@ export async function GET(req: NextRequest) {
     // Step 4: Connect to database
     await connectDB();
 
-    // Step 5: Load all designs for this user
+    // Step 5: Load all designs for this user (exclude deleted)
     // sort({ createdAt: -1 }) = newest first
     // lean() = convert Mongoose docs to plain JS objects (faster)
-    const designs = await Design.find({ userId: user.id })
+    const filter = { userId: user.id, deleted: { $ne: true } };
+    
+    const designs = await Design.find(filter)
       .sort({ createdAt: -1 })
       .skip((page -1)*limit)
       .limit(limit)
       .lean();
 
           // Get total count for pagination
-    const total = await Design.countDocuments({ userId: user.id });
+    const total = await Design.countDocuments(filter);
 
         // Step 6: Return user's designs with pagination
     return NextResponse.json({ 
