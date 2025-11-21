@@ -6,6 +6,10 @@ import DashboardLayout from "../../components/DashboardLayout";
 import HeroSection from "../../components/HeroSection";
 import { PlusCircle, GraduationCap, Sparkles } from "lucide-react";
 import React from "react";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import NavHeader from "@/components/NavHeader";
+import { useAuth } from "@/lib/authContext";
+import { useRouter } from "next/navigation";
 
 const features = [
 	{
@@ -39,10 +43,34 @@ const features = [
 ];
 
 export default function Home() {
+	const { isAuthenticated, isLoading } = useAuth();
+	const router = useRouter();
+
+	// Redirect to landing if not authenticated
+	React.useEffect(() => {
+		if (!isLoading && !isAuthenticated) {
+			router.push("/landing");
+		}
+	}, [isAuthenticated, isLoading, router]);
+
+	if (isLoading) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+			</div>
+		);
+	}
+
+	if (!isAuthenticated) {
+		return null; // Will redirect
+	}
+
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<DashboardLayout>
-				<HeroSection />
+		<ProtectedRoute>
+			<div className="min-h-screen bg-gray-50">
+				<NavHeader />
+				<DashboardLayout>
+					<HeroSection />
 
 				<section className="mx-auto w-full max-w-6xl px-6 py-10">
 					<h2 className="mb-6 text-2xl font-semibold text-zinc-900">
@@ -116,5 +144,6 @@ export default function Home() {
 				</footer>
 			</DashboardLayout>
 		</div>
+		</ProtectedRoute>
 	);
 }

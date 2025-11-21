@@ -2,6 +2,8 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/lib/authContext";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -15,6 +17,9 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [error, setError] = useState("");
+  const { login } = useAuth();
+  const router = useRouter();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -26,25 +31,47 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
+      setError("Passwords don't match!");
       return;
     }
     
     if (!acceptTerms) {
-      alert("Please accept the terms and conditions");
+      setError("Please accept the terms and conditions");
       return;
     }
 
     setLoading(true);
     
-    // Simulate registration process
-    await new Promise(resolve => setTimeout(resolve, 1800));
-    
-    // Redirect to main app (you can implement actual auth here)
-    window.location.href = "/generative-ai";
-    setLoading(false);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      // Save token using auth context
+      login(data.token);
+      
+      // Redirect to home
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getPasswordStrength = (password: string) => {
@@ -71,6 +98,11 @@ export default function RegisterPage() {
 
         {/* Register Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleRegister} className="space-y-5">
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">

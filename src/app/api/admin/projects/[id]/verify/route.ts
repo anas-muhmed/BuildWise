@@ -66,7 +66,7 @@ export async function POST(
     // Step 6: Business Logic Validations
     // ========================================
     
-    // 🚫 Don't verify deleted designs (your Q1 answer!)
+    // 🚫 Don't verify deleted designs 
     if (design.deleted === true) {
       return NextResponse.json(
         { error: "Cannot verify a deleted design" },
@@ -82,7 +82,8 @@ export async function POST(
     
     // Update verification fields
     design.status = "verified";
-    design.verified_by_admin_id = user.id;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    design.verified_by_admin_id = user.id as any;
     design.verified_at = new Date(); // Your Q3 answer - timestamp tracking!
     
     // Save to database

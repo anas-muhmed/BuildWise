@@ -14,6 +14,8 @@ import ComponentPallete from "@/components/canvas/ComponentPallete";
 import CanvasArea from "@/components/canvas/CanvasArea";
 import ConfigModal from "@/components/canvas/ConfigModal";
 import AiDrawer from "@/components/AiDrawer";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import NavHeader from "@/components/NavHeader";
 
 const STORAGE_KEY = "bw:v1:design";
 
@@ -59,7 +61,7 @@ interface DroppedComponent {
 }
 type Edge = { id: string; fromId: string; toId: string };
 
-export default function DesignPage() {
+function DesignPageInner() {
   // render only after mount to avoid hydration mismatch from dnd-kit/ids
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -493,5 +495,14 @@ export default function DesignPage() {
         blockTitle={editingBlock?.type}
       />
     </main>
+  );
+}
+
+export default function DesignPage() {
+  return (
+    <ProtectedRoute>
+      <NavHeader />
+      <DesignPageInner />
+    </ProtectedRoute>
   );
 }

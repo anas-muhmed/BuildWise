@@ -2,23 +2,46 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/lib/authContext";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const { login } = useAuth();
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
     
-    // Simulate login process
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Redirect to main app (you can implement actual auth here)
-    window.location.href = "/generative-ai";
-    setLoading(false);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      // Save token using auth context
+      login(data.token);
+      
+      // Redirect to home
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,6 +58,11 @@ export default function LoginPage() {
 
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleLogin} className="space-y-6">
             {/* Email Field */}
             <div>

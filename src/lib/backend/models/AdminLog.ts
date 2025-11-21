@@ -4,6 +4,7 @@ export interface IAdminLog extends Document {
   adminId: mongoose.Types.ObjectId;
   designId?: mongoose.Types.ObjectId;
   action: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   meta?: Record<string, any>;
   ip?: string;
   userAgent?: string;
