@@ -3,29 +3,68 @@ import { connectDB } from "@/lib/backend/mongodb";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
 import { StudentProject } from "@/lib/backend/models/StudentProject";
 import { StudentSubmission } from "@/lib/backend/models/StudentSubmission";
+import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req: Request) {
   const auth = getAuthUser(req);
   if (auth instanceof NextResponse) return auth;
-  const { projectId, notes } = await req.json();
-
+  
   await connectDB();
-  const project = await StudentProject.findOne({ _id: projectId, userId: auth.id });
-  if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  
+  try {
+    const body = await req.json();
+    const { projectId, notes } = body;
+    
+    if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
+    
+    const project = await StudentProject.findById(projectId);
+    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (project.userId.toString() !== auth.id) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-  // mark project as submitted
-  project.status = "submitted";
-  await project.save();
+    // Structured validation with actionable suggestions
+    const errors: any[] = [];
 
-  // create a submission record
-  const submission = await StudentSubmission.create({
-    projectId: project._id,
-    userId: auth.id,
-    notes: notes || "",
-    architecture: project.architecture,
-    status: "submitted",
-  });
+    const arch = project.architecture || { nodes: [], edges: [] };
+    if (!arch.nodes || arch.nodes.length === 0) {
+      errors.push({ code: "ARCH_EMPTY", msg: "Architecture is empty", suggestion: "Generate at least one step with nodes and edges" });
+    }
+    if (!project.roles || project.roles.length === 0) {
+      errors.push({ code: "ROLES_MISSING", msg: "Roles not generated", suggestion: "Run role generation in Feature Planning" });
+    }
+    if (!project.milestones || project.milestones.length === 0) {
+      errors.push({ code: "MILESTONES_MISSING", msg: "Milestones missing", suggestion: "Generate roles to auto-create milestones" });
+    }
+    if (project.skillLevel === "beginner") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const labels = (arch.nodes || []).map((n:any)=> (n.label||"").toLowerCase());
+      if (!labels.some((l:string)=> l.includes("frontend"))) {
+        errors.push({ code: "MISSING_FRONTEND", msg: "Frontend layer missing", suggestion: "Add a frontend node (UI) in Architecture" });
+      }
+      if (!labels.some((l:string)=> l.includes("backend"))) {
+        errors.push({ code: "MISSING_BACKEND", msg: "Backend layer missing", suggestion: "Add a backend node (API) in Architecture" });
+      }
+    }
 
-  // Optionally log (AdminLog entry can be created later when admin acts)
-  return NextResponse.json({ ok: true, submission });
+    if (errors.length) {
+      return NextResponse.json({ ok: false, errors }, { status: 400 });
+    }
+
+    // Mark project as submitted
+    project.status = "submitted";
+    await project.save();
+
+    // Create submission record
+    const submissionId = uuidv4();
+    const submission = await StudentSubmission.create({
+      projectId: project._id,
+      userId: auth.id,
+      notes: notes || "",
+      architecture: project.architecture,
+      status: "submitted",
+    });
+
+    return NextResponse.json({ ok: true, submissionId, submission });
+  } catch (err:any) {
+    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
+  }
 }

@@ -1,46 +1,94 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
-
-export interface INode {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-}
-
-export interface IEdge {
-  source: string;
-  target: string;
-}
+// src/lib/backend/models/StudentProject.ts
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IStudentProject extends Document {
   userId: mongoose.Types.ObjectId;
-  appType: string;                     // e.g. "ecommerce" | "notes" | "attendance"
-  skillLevel: "beginner"|"intermediate"|"advanced";
-  selectedFeatures: string[];          // e.g. ["auth","crud","payments"]
+  appType: string;
+  skillLevel: "beginner" | "intermediate" | "advanced";
+  selectedFeatures: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   steps: any[];
-  architecture: { nodes: INode[]; edges: IEdge[] };
-  explanations: string[];              // plain-language notes
-  aiScore?: number;                    // 0-100 (mock)
-  status: "draft"|"submitted"|"verified"|"flagged"|"deleted";
-  createdAt: Date;
-  updatedAt: Date;
+  architecture: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    nodes: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    edges: any[];
+  };
+  explanations: string[];
+  aiScore?: number | null;
+  status: "draft" | "submitted" | "verified" | "flagged" | "deleted";
+  roles?: {
+    id: string;
+    title: string;
+    description: string;
+    tasks: string[];
+    assignee?: mongoose.Types.ObjectId | null;
+  }[];
+  milestones?: {
+    id: string;
+    title: string;
+    description: string;
+    done: boolean;
+  }[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const StudentProjectSchema = new Schema<IStudentProject>({
-  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  appType: { type: String, required: true },
-  skillLevel: { type: String, enum: ["beginner","intermediate","advanced"], default: "beginner" },
-  selectedFeatures: { type: [String], default: [] },
-  steps: { type: Schema.Types.Mixed, default: [] },
-  architecture: { type: Schema.Types.Mixed, default: { nodes: [], edges: [] } },
-  explanations: { type: [String], default: [] },
-  aiScore: { type: Number, default: null },
-  status: { type: String, enum: ["draft","submitted","verified","flagged","deleted"], default: "draft" },
-}, { timestamps: true });
+const StudentProjectSchema = new Schema<IStudentProject>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    appType: { type: String, required: true },
+    skillLevel: {
+      type: String,
+      enum: ["beginner", "intermediate", "advanced"],
+      required: true,
+    },
+    selectedFeatures: { type: [String], default: [] },
+    steps: { type: Schema.Types.Mixed, default: [] },
+    architecture: { type: Schema.Types.Mixed, default: { nodes: [], edges: [] } },
+    explanations: { type: [String], default: [] },
+    aiScore: { type: Number, default: null },
+    status: {
+      type: String,
+      enum: ["draft", "submitted", "verified", "flagged", "deleted"],
+      default: "draft",
+    },
 
-StudentProjectSchema.index({ userId: 1, status: 1 });
-StudentProjectSchema.index({ appType: 1 });
+    // === NEW: role-based distribution (backward compatible) ===
+    roles: {
+      type: [
+        {
+          id: { type: String },
+          title: { type: String },
+          description: { type: String },
+          tasks: { type: [String], default: [] },
+          assignee: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        },
+      ],
+      default: [],
+    },
 
-export const StudentProject: Model<IStudentProject> =
-  mongoose.models.StudentProject || mongoose.model<IStudentProject>("StudentProject", StudentProjectSchema);
+    // === NEW: milestones (project checkpoints) ===
+    milestones: {
+      type: [
+        {
+          id: { type: String },
+          title: { type: String },
+          description: { type: String },
+          done: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
+
+// Keep existing indexes
+StudentProjectSchema.index({ userId: 1, createdAt: -1 });
+StudentProjectSchema.index({ status: 1 });
+
+// Export
+export const StudentProject =
+  mongoose.models.StudentProject ||
+  mongoose.model<IStudentProject>("StudentProject", StudentProjectSchema);

@@ -52,45 +52,24 @@ export default function AdminSubmissionsPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function verify(id: string) {
-    if (!confirm("Verify submission?")) return;
+  async function review(id: string, action: string) {
+    const comment = action === "flag" && reason ? reason : note;
+    if (action === "flag" && !comment) return alert("Provide reason for flagging");
+    
     const token = getToken();
-    const res = await fetch(`/api/admin/submissions/${id}/verify`, {
-      method: "POST",
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    const j = await res.json();
-    if (!res.ok) return alert("Err: " + j?.error);
-    alert("Verified");
-    load();
-  }
-
-  async function flagIt(id: string) {
-    if (!reason) return alert("Provide reason");
-    const token = getToken();
-    const res = await fetch(`/api/admin/submissions/${id}/flag`, {
+    const res = await fetch(`/api/admin/submission/${id}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ action, comment }),
     });
     const j = await res.json();
-    if (!res.ok) return alert("Err: " + j?.error);
-    alert("Flagged");
+    if (!res.ok) return alert("Error: " + (j?.error || "Failed"));
+    
+    const actionText = action === "approve" ? "Approved" : action === "reject" ? "Rejected" : "Flagged";
+    alert(`${actionText} successfully`);
     setReason("");
-    load();
-  }
-
-  async function addFeedback(id: string) {
-    const token = getToken();
-    const res = await fetch(`/api/admin/submissions/${id}/review`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ note, status: "reviewed" }),
-    });
-    const j = await res.json();
-    if (!res.ok) return alert("Err: " + j?.error);
-    alert("Feedback saved");
     setNote("");
+    setSelected(null);
     load();
   }
 
@@ -113,7 +92,9 @@ export default function AdminSubmissionsPage() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setSelected(s)} className="px-3 py-1 border rounded">View</button>
-                      <button onClick={() => verify(s._id)} className="px-3 py-1 bg-green-600 text-white rounded">Verify</button>
+                      <button onClick={() => review(s._id, "approve")} className="px-3 py-1 bg-green-600 text-white rounded">Approve</button>
+                      <button onClick={() => review(s._id, "flag")} className="px-3 py-1 bg-yellow-500 rounded">Flag</button>
+                      <button onClick={() => review(s._id, "reject")} className="px-3 py-1 bg-red-600 text-white rounded">Reject</button>
                     </div>
                   </li>
                 ))}
@@ -126,7 +107,7 @@ export default function AdminSubmissionsPage() {
               <h4 className="font-semibold mb-2">Quick Flag</h4>
               <textarea className="w-full p-2 border rounded h-24" value={reason} onChange={(e)=>setReason(e.target.value)} placeholder="Reason for flagging"></textarea>
               <div className="mt-2 flex gap-2">
-                <button onClick={() => { if (!selected) return alert("Select a submission first"); flagIt(selected._id);} } className="px-3 py-1 bg-red-600 text-white rounded">Flag Selected</button>
+                <button onClick={() => { if (!selected) return alert("Select a submission first"); review(selected._id, "flag");} } className="px-3 py-1 bg-red-600 text-white rounded">Flag Selected</button>
                 <button onClick={() => load()} className="px-3 py-1 border rounded">Refresh</button>
               </div>
             </div>
@@ -142,7 +123,7 @@ export default function AdminSubmissionsPage() {
                   <div className="text-sm text-gray-700 mb-2">
                     <textarea placeholder="Add feedback..." value={note} onChange={(e)=>setNote(e.target.value)} className="w-full border p-2 h-24 rounded"></textarea>
                     <div className="flex gap-2 mt-2">
-                      <button onClick={()=>addFeedback(selected._id)} className="px-3 py-1 bg-indigo-600 text-white rounded">Save Feedback</button>
+                      <button onClick={()=>{ review(selected._id, "approve"); }} className="px-3 py-1 bg-green-600 text-white rounded">Approve with Note</button>
                       <button onClick={()=>{ setSelected(null); setNote(""); }} className="px-3 py-1 border rounded">Clear</button>
                     </div>
                   </div>

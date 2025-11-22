@@ -1,133 +1,71 @@
+// src/app/student/[id]/page.tsx
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NavHeader from "@/components/NavHeader";
 
-/**
- * Student Mode Editor Page
- * - Loads a StudentProject
- * - Renders architecture (nodes + edges)
- * - Generate Next Step (calls POST /api/student/project/generate-step)
- * - Submit Project for review (POST /api/student/project/submit)
- *
- * Notes:
- * - Expects auth token in localStorage key "token"
- * - Adjust API paths if your server route differs
- */
-
-type Node = { id: string; label: string; x: number; y: number };
-type Edge = { source: string; target: string };
-
-type StudentProject = {
-  _id: string;
-  appType: string;
-  skillLevel: "beginner" | "intermediate" | "advanced";
-  selectedFeatures: string[];
-  steps: { step: number; title: string; nodes: Node[]; edges: Edge[] }[];
-  architecture: { nodes: Node[]; edges: Edge[] };
-  explanations: string[];
-  aiScore?: number | null;
-  status: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-function getToken(): string | null {
+function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
 }
 
-function StudentProjectEditorInner() {
+/**
+ * Simple node renderer (not a full canvas lib) — positions nodes horizontally.
+ * Expects nodes: [{ id, label, meta? }] edges: [{ from, to }]
+ */
+
+export default function StudentEditorPage() {
   const router = useRouter();
   const params = useParams() as { id?: string };
-  const projectId = params?.id;
+  const projectId = params?.id || "";
 
-  const [project, setProject] = useState<StudentProject | null>(null);
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [displayedExplanations, setDisplayedExplanations] = useState<string[]>([]);
-  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
+  const [viewArch, setViewArch] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [selectedStep, setSelectedStep] = useState<number | null>(null);
 
-  // Load project
-  useEffect(() => {
+  const loadProject = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        const token = getToken();
-        const res = await fetch(`/api/student/project/get/${projectId}`, {
-          method: "GET",
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || "Failed to load project");
-        setProject(json.project);
-        // show initial explanations if available
-        if (json.project.explanations?.length) {
-          setDisplayedExplanations([]);
-          // animate typing-like reveal
-          let idx = 0;
-          const iv = setInterval(() => {
-            setDisplayedExplanations((prev) => [...prev, json.project.explanations[idx]]);
-            idx++;
-            if (idx >= json.project.explanations.length) clearInterval(iv);
-          }, 600);
-        } else {
-          setDisplayedExplanations([]);
-        }
-      } catch (err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : "Error loading project");
-      } finally {
-        setLoading(false);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/student/project/${projectId}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load project");
+      setProject(data.project);
+      // default view to latest architecture or step 1
+      if (data.project.architecture?.nodes?.length) {
+        setViewArch({ nodes: data.project.architecture.nodes, edges: data.project.architecture.edges });
+      } else if (data.project.steps && data.project.steps.length) {
+        const last = data.project.steps[data.project.steps.length - 1];
+        setViewArch({ nodes: last.nodes || [], edges: last.edges || [] });
+      } else {
+        setViewArch({ nodes: [], edges: [] });
       }
-    })();
+      setSelectedStep(data.project.steps?.length ? data.project.steps.length : null);
+    } catch (e: unknown) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Error loading");
+    } finally {
+      setLoading(false);
+    }
   }, [projectId]);
 
-  // Compute centers for SVG edges
-  const nodeCenters = useMemo(() => {
-    const map = new Map<string, { cx: number; cy: number }>();
-    const nodes = project?.architecture?.nodes || [];
-    nodes.forEach((n) => {
-      map.set(n.id, { cx: n.x + 60, cy: n.y + 20 }); // same assumptions as other canvas
-    });
-    return map;
-  }, [project?.architecture]);
+  useEffect(() => {
+    loadProject();
+  }, [loadProject]);
 
-  // Helper: draw edges as quadratic bezier
-  function renderEdges(edges: Edge[]) {
-    return edges.map((e, i) => {
-      const src = nodeCenters.get(e.source);
-      const tgt = nodeCenters.get(e.target);
-      if (!src || !tgt) return null;
-      const midX = (src.cx + tgt.cx) / 2;
-      const controlY = (src.cy + tgt.cy) / 2 - 30;
-      const path = `M ${src.cx} ${src.cy} Q ${midX} ${controlY} ${tgt.cx} ${tgt.cy}`;
-      return (
-        <path
-          key={`${e.source}-${e.target}-${i}`}
-          d={path}
-          stroke="#2563eb"
-          strokeWidth={2.5}
-          fill="none"
-          strokeLinecap="round"
-          markerEnd="url(#arrowhead)"
-          opacity={0.95}
-        />
-      );
-    });
-  }
-
-  // Generate next step
-  async function handleGenerateStep() {
+  // Generate next step: call backend route which should append a step to project and return it
+  async function generateNextStep() {
     if (!projectId) return;
-    setGenerating(true);
+    setBusy(true);
     setError(null);
     try {
       const token = getToken();
@@ -140,243 +78,349 @@ function StudentProjectEditorInner() {
         body: JSON.stringify({ projectId }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed to generate step");
-      const updatedProject: StudentProject = json.project;
-      setProject(updatedProject);
+      if (!res.ok) throw new Error(json?.error || "generate-step failed");
 
-      // show the newly added step as selected
-      if (updatedProject.steps && updatedProject.steps.length > 0) {
-        setSelectedStepIndex(updatedProject.steps.length - 1);
-      }
+      // server should return { step, nodes, edges, explanations }
+      const stepObj = json.step;
+      // update local project copy
+      const updated = { ...project };
+      updated.steps = updated.steps || [];
+      updated.steps.push(stepObj);
 
-      // animate explanations again
-      setDisplayedExplanations([]);
-      if (updatedProject.explanations?.length) {
-        let idx = 0;
-        const iv = setInterval(() => {
-          setDisplayedExplanations((prev) => [...prev, updatedProject.explanations[idx]]);
-          idx++;
-          if (idx >= updatedProject.explanations.length) clearInterval(iv);
-        }, 600);
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Generation failed");
+      // optionally update persistent architecture (we keep latest)
+      updated.architecture = { nodes: stepObj.nodes || [], edges: stepObj.edges || [] };
+
+      // update local state and save back
+      setProject(updated);
+      setViewArch({ nodes: stepObj.nodes || [], edges: stepObj.edges || [] });
+      setSelectedStep(updated.steps.length);
+    } catch (e: unknown) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Failed to generate step");
     } finally {
-      setGenerating(false);
+      setBusy(false);
     }
   }
 
-  // Submit project
-  async function handleSubmit(notes?: string) {
+  // Save the current viewArch into project.architecture (persist to server)
+  async function saveArchitecture() {
     if (!projectId) return;
-    if (!confirm("Submit this project for review? You can still iterate in a new copy. This will set status=submitted.")) return;
-    setSubmitLoading(true);
+    setBusy(true);
     setError(null);
     try {
       const token = getToken();
-      const res = await fetch("/api/student/project/submit", {
+      const res = await fetch("/api/student/project/save-architecture", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ projectId, notes: notes || "" }),
+        body: JSON.stringify({ projectId, architecture: viewArch }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Submit failed");
-      // On success, project.status should be "submitted". Reload or update
-      // Let's refresh project by calling GET
-      const reload = await fetch(`/api/student/project/get/${projectId}`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      const reloadJson = await reload.json();
-      if (reload.ok && reloadJson.project) {
-        setProject(reloadJson.project);
-      }
-      alert("Project submitted for review.");
-      // Optionally navigate to student's projects page
-      router.push("/student");
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Submit failed");
+      if (!res.ok) throw new Error(json?.error || "save failed");
+      // refresh
+      await loadProject();
+      alert("Architecture saved.");
+    } catch (e: unknown) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSubmitLoading(false);
+      setBusy(false);
     }
   }
 
-  // Render step list
-  function StepsList() {
-    if (!project) return null;
-    const steps = project.steps || [];
-    if (steps.length === 0) {
-      return <div className="text-sm text-gray-500 py-4">No steps yet — click &quot;Generate step&quot; to start.</div>;
-    }
+  // Load a particular step from project.steps into viewArch
+  function loadStep(stepNum: number) {
+    if (!project || !project.steps) return;
+    const s = project.steps[stepNum - 1];
+    if (!s) return;
+    setViewArch({ nodes: s.nodes || [], edges: s.edges || [] });
+    setSelectedStep(stepNum);
+  }
+
+  // Simple renderer for nodes and edges
+  function Canvas({ nodes, edges }: { nodes: any[]; edges: any[] }) {
+    // determine positions
+    const w = 900;
+    const h = 420;
+    const count = nodes.length || 0;
+    const startX = 80;
+    const gap = count > 1 ? Math.max(140, (w - 160) / Math.max(1, count - 1)) : 0;
+
+    const positioned = (nodes || []).map((n:any,i:number) => {
+      const x = startX + i * gap;
+      const y = 160 + (Math.sin(i)*10); // tiny variance for visual interest
+      return { ...n, x, y };
+    });
+
+    // map edges to coordinates
+    const edgePaths = (edges || []).map((e:any, idx:number) => {
+      const from = positioned.find((p:any) => p.id === e.from) || positioned[e.from] || null;
+      const to = positioned.find((p:any) => p.id === e.to) || positioned[e.to] || null;
+      if (!from || !to) return null;
+      const sx = from.x + 80;
+      const sy = from.y + 12;
+      const tx = to.x - 20;
+      const ty = to.y + 12;
+      // simple cubic curve
+      const cx1 = sx + (tx - sx) * 0.3;
+      const cx2 = sx + (tx - sx) * 0.7;
+      const d = `M ${sx} ${sy} C ${cx1} ${sy} ${cx2} ${ty} ${tx} ${ty}`;
+      return { d, key: idx, sx, sy, tx, ty };
+    }).filter(Boolean);
+
     return (
-      <div className="space-y-3">
-        {steps.map((s, i) => (
-          <div
-            key={i}
-            onClick={() => {
-              setSelectedStepIndex(i);
-              // set architecture to that step temporarily (client-side view)
-              setProject((prev) => {
-                if (!prev) return prev;
-                // we won't mutate server state; just set architecture for viewing
-                return { ...prev, architecture: { nodes: s.nodes, edges: s.edges } };
-              });
-            }}
-            className={`p-3 border rounded hover:shadow cursor-pointer ${selectedStepIndex === i ? "border-blue-400 bg-blue-50" : "border-gray-100"}`}
-          >
-            <div className="flex justify-between items-center">
-              <div className="font-medium">{s.title || `Step ${s.step}`}</div>
-              <div className="text-xs text-gray-500">nodes: {s.nodes?.length || 0}</div>
-            </div>
-            <div className="text-xs text-gray-600 mt-1">{/* small preview text if you want */}</div>
-          </div>
-        ))}
+      <div className="bg-white rounded-lg border p-4 shadow">
+        <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ maxWidth: "100%", height: 420 }}>
+          <defs>
+            <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* edges */}
+          {edgePaths.map((ep:any) => (
+            <path key={ep.key} d={ep.d} stroke="#3b82f6" strokeWidth={3} fill="none" strokeLinecap="round" style={{ opacity: 0.95 }} />
+          ))}
+
+          {/* nodes */}
+          {positioned.map((n:any, idx:number) => (
+            <g key={n.id || idx} transform={`translate(${n.x}, ${n.y})`}>
+              <foreignObject x={-60} y={-24} width={140} height={48}>
+                <div className="p-2 border rounded-md" style={{ background: "#fff", border: "1px solid #c7ddff", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{n.label || n.title || `Node ${idx+1}`}</div>
+                  <div style={{ fontSize: 11, color: "#666" }}>{n.type || (n.meta && n.meta.description) || ""}</div>
+                </div>
+              </foreignObject>
+            </g>
+          ))}
+        </svg>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6">
-        {/* Left: Canvas and actions */}
-        <div className="col-span-8">
-          <div className="bg-white rounded-xl p-4 shadow flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold">Student Mode — Editor</h2>
-              <p className="text-sm text-slate-500">Project ID: <code className="bg-gray-100 px-2 py-0.5 rounded">{project?._id || projectId}</code></p>
-            </div>
-
-            <div className="flex gap-2 items-center">
-              <div className="text-sm text-slate-600">Status: <span className="font-medium">{project?.status || "loading"}</span></div>
-              <button
-                onClick={handleGenerateStep}
-                disabled={generating || !!(project?.status && project.status !== "draft")}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded disabled:opacity-60"
-              >
-                {generating ? "Generating..." : "Generate step"}
-              </button>
-
-              <button
-                onClick={() => handleSubmit()}
-                disabled={submitLoading || project?.status === "submitted" || !project}
-                className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-60"
-              >
-                {submitLoading ? "Submitting..." : "Submit for Review"}
-              </button>
-            </div>
-          </div>
-
-          {/* Canvas */}
-          <div className="bg-white rounded-xl border border-gray-200 h-[520px] overflow-hidden relative">
-            {/* SVG */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-                </marker>
-              </defs>
-
-              {/* edges */}
-              {project?.architecture?.edges && renderEdges(project.architecture.edges)}
-
-            </svg>
-
-            {/* nodes rendered as HTML via foreignObject */}
-            <div className="absolute inset-0 pointer-events-auto">
-              <svg width="100%" height="100%">
-                <defs />
-                {project?.architecture?.nodes?.map((n) => (
-                  <foreignObject key={n.id} x={n.x} y={n.y} width={140} height={48}>
-                    <div>
-                      <div className="bg-white border-2 border-gray-200 rounded-lg shadow px-2 py-2 text-sm font-semibold flex items-center justify-center">
-                        {n.label}
-                      </div>
-                    </div>
-                  </foreignObject>
-                ))}
-              </svg>
-            </div>
-
-            {/* Loading and empty states */}
-            {!project && !loading && <div className="absolute inset-0 flex items-center justify-center text-slate-400">No project loaded.</div>}
-            {loading && <div className="absolute inset-0 flex items-center justify-center bg-white/80">Loading project...</div>}
-          </div>
-
-          {/* Explanations and AI Score */}
-          <div className="mt-4 grid grid-cols-3 gap-4">
-            <div className="col-span-2 bg-white p-4 rounded-xl shadow">
-              <h3 className="font-semibold mb-2">AI Explanations</h3>
-              {displayedExplanations.length === 0 && <div className="text-sm text-gray-500">No explanations yet. Generate a step.</div>}
-              <ul className="space-y-3">
-                {displayedExplanations.map((t, idx) => (
-                  <li key={idx} className="text-sm text-gray-700">{t}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="col-span-1 bg-white p-4 rounded-xl shadow">
-              <h3 className="font-semibold mb-2">AI Score</h3>
-              <div className="text-3xl font-bold text-indigo-600">{project?.aiScore ?? "—"}</div>
-              <div className="mt-2 text-xs text-gray-500">Higher = better. This is a mock score for demo.</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Steps list, metadata, preview */}
-        <div className="col-span-4">
-          <div className="bg-white rounded-xl p-4 shadow mb-4">
-            <h4 className="font-semibold mb-2">Steps</h4>
-            <StepsList />
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow mb-4">
-            <h4 className="font-semibold mb-2">Project Info</h4>
-            <div className="text-sm text-gray-700">App type: <span className="font-medium">{project?.appType}</span></div>
-            <div className="text-sm text-gray-700">Skill level: <span className="font-medium">{project?.skillLevel}</span></div>
-            <div className="text-sm text-gray-700">Features: <span className="font-medium">{(project?.selectedFeatures || []).join(", ") || "none"}</span></div>
-            <div className="text-sm text-gray-500 mt-2">Created: {project?.createdAt ? new Date(project.createdAt).toLocaleString() : "-"}</div>
-            <div className="mt-3 text-xs text-gray-400">Status: {project?.status}</div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow">
-            <h4 className="font-semibold mb-2">UI Reference</h4>
-            <div className="w-full h-36 bg-gradient-to-br from-indigo-50 to-blue-100 rounded flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-3xl mb-2">🎓</div>
-                <div className="text-sm font-medium text-slate-700">Student Mode</div>
-                <div className="text-xs text-slate-500">Step-by-step Architecture</div>
+  // Render step history list
+  function StepHistory() {
+    const steps = project?.steps || [];
+    return (
+      <div className="bg-white rounded-xl shadow p-4 mb-4">
+        <h4 className="font-semibold mb-2">Steps</h4>
+        <div className="space-y-2 text-sm">
+          {steps.length === 0 && <div className="text-gray-500">No steps yet. Click &quot;Generate Next Step&quot;.</div>}
+          {steps.map((s:any, idx:number) => (
+            <div
+              key={s.step || idx}
+              onClick={() => loadStep(idx + 1)}
+              className={`p-2 cursor-pointer rounded border ${selectedStep === idx + 1 ? "bg-blue-50 border-blue-400" : "hover:bg-gray-50"}`}
+            >
+              <div className="flex justify-between">
+                <div>Step {idx + 1}</div>
+                <div className="text-xs text-gray-500">{(s.nodes||[]).length} nodes</div>
               </div>
+              <div className="text-xs text-gray-600">{s.short || (s.explanations && s.explanations[0]) || "Generated step"}</div>
             </div>
-            <div className="text-xs text-gray-400 mt-2">Reference UI placeholder</div>
-          </div>
+          ))}
         </div>
       </div>
+    );
+  }
 
-      {/* Error toast */}
-      {error && (
-        <div className="fixed right-6 bottom-6 bg-red-600 text-white px-4 py-2 rounded shadow">
-          <div className="flex items-center gap-3">
-            <div>Error</div>
-            <div className="text-sm opacity-90">{error}</div>
-            <button className="ml-2 opacity-80" onClick={() => setError(null)}>✕</button>
-          </div>
+  // Submit with pre-validation
+  async function handleSubmit() {
+    if (!project) return;
+    // local quick checks
+    const arch = project.architecture || { nodes: [], edges: [] };
+    const errors: string[] = [];
+    if (!arch.nodes || arch.nodes.length === 0) errors.push("Architecture is empty — generate at least one step.");
+    if (!project.roles || project.roles.length === 0) errors.push("Roles not generated. Click 'Update Roles' in Feature Planning.");
+    if (!project.milestones || project.milestones.length === 0) errors.push("Milestones missing. Generate roles to auto-create milestones.");
+    if (project.skillLevel === "beginner") {
+      const labels = (arch.nodes || []).map((n:any) => (n.label||"").toLowerCase());
+      if (!labels.some((l:string)=>l.includes("frontend")) || !labels.some((l:string)=>l.includes("backend"))) {
+        errors.push("Beginner projects must include both frontend and backend layers.");
+      }
+    }
+    if (errors.length) {
+      // show modal or alert with actionable items
+      alert("Fix the following before submitting:\n\n- " + errors.join("\n- "));
+      return;
+    }
+
+    // server submit
+    try {
+      const token = getToken();
+      const res = await fetch("/api/student/project/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ projectId: project._id })
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        // server returns structured errors: { errors: [{code,msg,field,suggestion}] }
+        if (json?.errors) {
+          const msgs = json.errors.map((e:any)=> `${e.msg} ${e.suggestion ? " — Fix: "+e.suggestion : ""}` ).join("\n");
+          alert("Submission failed:\n\n" + msgs);
+        } else {
+          throw new Error(json?.error || "Submit failed");
+        }
+        return;
+      }
+      alert("Project submitted for review. Submission ID: " + (json.submissionId || "N/A"));
+      // reload project to update status
+      await loadProject();
+    } catch (err:any) {
+      alert(err instanceof Error ? err.message : "Submit failed");
+    }
+  }
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <NavHeader />
+        <div className="p-6">Loading project...</div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!project) {
+    return (
+      <ProtectedRoute>
+        <NavHeader />
+        <div className="p-6">
+          <div className="text-red-600">Project not found or loading failed.</div>
         </div>
-      )}
-    </div>
-  );
-}
+      </ProtectedRoute>
+    );
+  }
 
-export default function StudentProjectEditorPage() {
   return (
     <ProtectedRoute>
       <NavHeader />
-      <StudentProjectEditorInner />
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-12 gap-6">
+          {/* Left: Steps */}
+          <div className="col-span-3">
+            <div className="bg-white rounded-xl p-4 shadow mb-4">
+              <div className="text-sm text-gray-600">Project ID</div>
+              <div className="font-mono text-xs break-all">{project._id}</div>
+              <div className="mt-3 text-xs text-gray-500">Status: {project.status}</div>
+            </div>
+
+            <StepHistory />
+
+            {/* Roles card reused */}
+            <div className="bg-white rounded-xl p-4 shadow mb-4">
+              <h4 className="font-semibold mb-2">Roles</h4>
+              {project.roles && project.roles.length ? (
+                <ul className="text-sm space-y-2">
+                  {project.roles.map((r:any) => (
+                    <li key={r.id} className="p-2 border rounded">
+                      <div className="font-medium">{r.title}</div>
+                      <div className="text-xs text-gray-500">{r.description}</div>
+                      <ul className="text-xs list-disc ml-4">
+                        {r.tasks.map((t:string, i:number) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              ) : <div className="text-sm text-gray-500">No roles yet</div>}
+            </div>
+
+            {/* Milestones */}
+            <div className="bg-white rounded-xl p-4 shadow">
+              <h4 className="font-semibold mb-2">Milestones</h4>
+              {project.milestones && project.milestones.length ? (
+                <ul className="text-sm space-y-2">
+                  {project.milestones.map((m:any) => (
+                    <li key={m.id} className="flex items-start gap-2">
+                      <input type="checkbox" checked={!!m.done} readOnly className="mt-1" />
+                      <div>
+                        <div className="font-medium">{m.title}</div>
+                        <div className="text-xs text-gray-500">{m.description}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <div className="text-sm text-gray-500">No milestones</div>}
+            </div>
+
+          </div>
+
+          {/* Center: Canvas */}
+          <div className="col-span-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Student Mode — Editor</h2>
+              <div className="flex gap-2">
+                <button onClick={generateNextStep} disabled={busy} className="px-3 py-2 bg-indigo-600 text-white rounded">Generate Next Step</button>
+                <button onClick={saveArchitecture} disabled={busy} className="px-3 py-2 border rounded">Save Architecture</button>
+                <button onClick={async () => {
+                  try {
+                    const token = getToken();
+                    const res = await fetch(`/api/student/project/${project._id}/export`, {
+                      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                    });
+                    const j = await res.json();
+                    const a = document.createElement("a");
+                    const blob = new Blob([JSON.stringify(j, null, 2)], { type: "application/json" });
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `${project._id}_snapshot.json`;
+                    a.click();
+                  } catch (e) {
+                    alert("Export failed");
+                  }
+                }} disabled={busy} className="px-3 py-2 border rounded">Export JSON</button>
+                <button onClick={handleSubmit} disabled={busy} className="px-3 py-2 bg-green-600 text-white rounded">Submit for Review</button>
+              </div>
+            </div>
+
+            <Canvas nodes={viewArch.nodes} edges={viewArch.edges} />
+
+            {/* Explanations */}
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              {(project.steps && project.steps.length) ? project.steps.slice(Math.max(0, project.steps.length-4)).reverse().map((s:any, i:number) => (
+                <div key={i} className="bg-white p-3 rounded shadow">
+                  <div className="text-xs text-gray-500">Step {s.step}</div>
+                  <div className="font-medium">{s.short || "Step summary"}</div>
+                  <div className="text-sm text-gray-600 mt-2">
+                    {(s.explanations || []).map((ex:string, idx:number) => <div key={idx} className="mb-2 text-sm">{ex}</div>)}
+                  </div>
+                </div>
+              )) : (
+                <div className="text-sm text-gray-500">No explanations yet. Generate a step.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Project summary + tips */}
+          <div className="col-span-3">
+            <div className="bg-white rounded-xl p-4 shadow mb-4">
+              <h4 className="font-semibold mb-2">Project Summary</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div><strong>App:</strong> {project.appType}</div>
+                <div><strong>Skill:</strong> {project.skillLevel}</div>
+                <div><strong>Features:</strong> {(project.selectedFeatures || []).join(", ") || "none"}</div>
+                <div><strong>Steps:</strong> {(project.steps || []).length}</div>
+                <div><strong>AI Score:</strong> {project.aiScore ?? "—"}</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow">
+              <h4 className="font-semibold mb-2">Tips</h4>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>Generate one step at a time and review explanations.</li>
+                <li>Save architecture after edits so teachers can view it.</li>
+                <li>Use Roles to split work among teammates.</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </ProtectedRoute>
   );
 }

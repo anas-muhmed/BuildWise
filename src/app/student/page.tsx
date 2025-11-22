@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NavHeader from "@/components/NavHeader";
 
@@ -76,12 +77,12 @@ function StudentLandingContent() {
             <p className="text-sm text-slate-500">Your guided projects — draft, generate, submit.</p>
           </div>
           <div className="flex gap-2">
-            <a href="/student/new">
+            <Link href="/student/new">
               <button className="px-4 py-2 bg-blue-600 text-white rounded">Start New Project</button>
-            </a>
-            <a href="/student/history">
+            </Link>
+            <Link href="/student/history">
               <button className="px-4 py-2 border rounded">My Projects</button>
-            </a>
+            </Link>
           </div>
         </div>
 
