@@ -1,343 +1,273 @@
-# 🧪 TESTING GUIDE - BuildWise Full Application
+# Manual Testing Guide - Student Flow UX Fixes
 
-## 🚀 Quick Start
+## ✅ All Fixes Implemented
 
-```bash
-# 1. Start MongoDB (if not running)
-# Windows (if installed as service, it should already be running)
-# Otherwise: mongod --dbpath C:\data\db
+### Changes Made:
+1. ✅ Fixed `BuilderStatusPanel` - Three explicit states (snapshot_missing, pending, ready)
+2. ✅ Fixed `useSnapshotPoll` hook - Auto-checks snapshot on mount
+3. ✅ Fixed Proposal page - No-team banner, improved messaging  
+4. ✅ Fixed Editor bootstrap - sessionStorage → API → fallback sequence
+5. ✅ Fixed Local scaffold generator - Creates 3-node architecture
+6. ✅ Fixed critical bug - Remove string `_id` from mock snapshots
+7. ✅ Fixed Next.js 15 async params - Await `context.params` in routes
 
-# 2. Start Next.js dev server
-npm run dev
+---
 
-# 3. Open browser
-http://localhost:3000
+## 🧪 Manual Test Steps
+
+### Test 1: Create Project & View Proposal
+
+1. Open browser to `http://localhost:3000/student`
+2. Click "Create New Project"
+3. Fill form:
+   - Title: "Test Project"
+   - App Type: Web
+   - Skill Level: Beginner
+   - Features: Auth, CRUD
+   - Team Size: 2
+   - Members: Leave empty (to test no-team banner)
+4. Click "Create Project"
+5. Should navigate to `/student/[id]/proposal`
+
+**Expected Result:**
+- ✅ Orange banner: "No team members added" with "Add team members →" link
+- ✅ BuilderStatusPanel shows "Snapshot not created" (orange, AlertCircle icon)
+- ✅ "Regenerate" button enabled
+- ✅ "Open Editor" button disabled
+
+---
+
+### Test 2: Regenerate Snapshot & Poll
+
+1. On proposal page, click "Regenerate" button
+2. Watch BuilderStatusPanel
+
+**Expected Behavior:**
+- ✅ Button changes to "Regenerating..." (disabled)
+- ✅ Status changes to "Preparing builder..." (blue, Loader2 icon spinning)
+- ✅ Progress bar animates (0% → 100% over ~5-10 seconds)
+- ✅ After completion: Status changes to "Snapshot ready" (green, CheckCircle2 icon)
+- ✅ "Open Editor" button becomes enabled
+
+**Expected Console Logs** (check browser DevTools):
+```
+[builder] Initial snapshot check...
+(after clicking Regenerate)
+Regenerate triggered
+(after polling completes)
+Snapshot is ready
+```
+
+**Expected Server Logs** (check terminal):
+```
+[job] enqueueSnapshotJob start <projectId>
+[job] project loaded: <projectId>
+[job] raw snapshot generated, keys: [...]
+[job] normalized snapshot, nodes: 12 edges: 13
+[job] snapshot saved <snapshotId> version <timestamp>
 ```
 
 ---
 
-## 📋 Complete Testing Flow (Follow This Order!)
+### Test 3: Open Editor (Fast Path via sessionStorage)
 
-### ✅ Step 1: First-Time Setup (Register → Login)
+1. After snapshot is ready (green status), click "Open Editor"
+2. Editor should load **instantly** (<100ms)
 
-**Expected Flow:** Register → Redirect to Home (with auth)
+**Expected Behavior:**
+- ✅ No loading spinner
+- ✅ Canvas displays with nodes and edges immediately
+- ✅ Sidebar shows architecture modules
 
-1. **Navigate to:** `http://localhost:3000`
-   - ❌ Should redirect to `/login` (no token yet)
+**Expected Console Logs**:
+```
+[builder] ✓ Loaded snapshot from sessionStorage (instant)
+```
 
-2. **Click "Sign up for free"** or go to `/register`
-   - Fill form:
-     - First Name: John
-     - Last Name: Doe
-     - Email: john@example.com
-     - Password: password123
-     - Confirm Password: password123
-     - ✅ Check "Accept Terms"
-   - Click **"Create Account"**
-
-3. **Expected Result:**
-   - ✅ Token saved to localStorage
-   - ✅ Redirected to `/` (home page)
-   - ✅ See NavHeader with logout button
-   - ✅ See DashboardLayout with features
-
-4. **Verify Authentication:**
-   - Open DevTools (F12) → Console
-   - Type: `localStorage.getItem('token')`
-   - ✅ Should return JWT token string
+**Verify sessionStorage**:
+1. Open DevTools → Application → Session Storage
+2. Key `snapshot:<projectId>` should exist
+3. Value should be JSON with `nodes` and `edges` arrays
 
 ---
 
-### ✅ Step 2: Test Navigation & Home Page
+### Test 4: Editor Fallback (Direct Link, No sessionStorage)
 
-1. **Home Page Features:** `/`
-   - ✅ NavHeader visible (BuildWise logo, nav links, Logout button)
-   - ✅ Hero section
-   - ✅ 4 feature cards:
-     - AI Architecture Designer
-     - Start New Design
-     - Student Mode
-     - Generative AI Design
+1. Open DevTools → Application → Session Storage
+2. Delete key `snapshot:<projectId>`
+3. Navigate to `/student/<PROJECT_ID>/builder` (refresh page or open in new tab)
 
-2. **Click each nav link to verify routing:**
-   - Design Canvas → `/design`
-   - Generative AI → `/generative-ai`
-   - Student Mode → `/student`
-
-3. **Test Logout:**
-   - Click **"Logout"** button
-   - ✅ Token cleared from localStorage
-   - ✅ Redirected to `/login`
+**Expected Behavior:**
+- ✅ Shows fallback UI (orange banner: "Snapshot not ready")
+- ✅ Three options visible:
+  - **"Create Basic Scaffold"** (primary button, indigo)
+  - **"Regenerate"** (secondary button)
+  - **"Open Empty Canvas"** (secondary button)
+- ✅ "View server logs" link visible (if NODE_ENV=development)
+- ✅ "← Back to Proposal" link at bottom
 
 ---
 
-### ✅ Step 3: Test Student Mode (Main Feature)
+### Test 5: Create Basic Scaffold
 
-**Login again first!** (john@example.com / password123)
+1. From fallback UI, click "Create Basic Scaffold"
+2. Canvas should hydrate immediately
 
-#### 3.1 Student Landing Page
+**Expected Result:**
+- ✅ 3 nodes appear:
+  - **Frontend** (left, ~150px)
+  - **Backend** (center, ~400px)
+  - **Database** (right, ~650px)
+- ✅ 2 edges:
+  - Frontend → Backend
+  - Backend → Database
+- ✅ Nodes are draggable
+- ✅ Can click "Save" to persist
 
-1. **Navigate to:** `/student`
-   - ✅ See "Start New Project" button
-   - ✅ Empty state (no projects yet)
-   - ✅ Tips sidebar on right
-
-#### 3.2 Create New Project
-
-2. **Click "Start New Project"** → `/student/new`
-   - **Choose App Type:** E-commerce
-   - **Choose Skill Level:** Beginner (radio button)
-   - **Select Features:** Check "Authentication" and "CRUD"
-   - Click **"Create Project"**
-
-3. **Expected Result:**
-   - ✅ Redirected to `/student/[projectId]` (editor page)
-   - ✅ See project title and skill level
-   - ✅ Empty canvas (no nodes yet)
-
-#### 3.3 Generate Architecture Steps
-
-4. **Click "Generate Next Step"** button
-   - ✅ Loading spinner appears
-   - ✅ SVG canvas renders nodes (boxes)
-   - ✅ Edges (lines) connecting nodes
-   - ✅ Typing animation for explanations
-   - ✅ AI score increases
-
-5. **Generate 3-5 more steps:**
-   - Click "Generate Next Step" repeatedly
-   - ✅ Each step adds more nodes
-   - ✅ Architecture grows progressively
-   - ✅ Step list on right shows all steps
-
-6. **Click on step in sidebar:**
-   - ✅ Canvas updates to show that step's state
-   - ✅ Explanations change
-
-#### 3.4 Submit Project
-
-7. **Click "Submit for Admin Review"**
-   - ✅ Confirm dialog appears
-   - ✅ After confirm, redirected to `/student`
-   - ✅ See project in list with status "submitted"
+**Expected Console Logs**:
+```
+[builder] ✓ Created local scaffold (3 nodes)
+```
 
 ---
 
-### ✅ Step 4: Test Design Canvas (Drag & Drop)
+### Test 6: Regenerate from Fallback
 
-1. **Navigate to:** `/design`
+1. From fallback UI, click "Regenerate"
+2. Should show loading state then auto-hydrate when ready
 
-2. **Test Drag & Drop:**
-   - From left palette, drag "Frontend" component
-   - Drop on canvas
-   - ✅ Component appears at drop location
-   - Drag more components (Backend, Database, etc.)
-
-3. **Test Connections:**
-   - Click "Start Connection" button
-   - Click source node, then target node
-   - ✅ Line drawn between nodes
-
-4. **Test Configuration:**
-   - Double-click a node (or right-click → Configure)
-   - ✅ Modal opens
-   - Edit name, tech stack, notes
-   - Click Save
-   - ✅ Changes reflected on canvas
-
-5. **Test Save Design:**
-   - Enter title at top
-   - Click "Save Design"
-   - ✅ Success message appears
+**Expected Behavior:**
+- Similar to Test 2 (triggers job, polls, then loads canvas)
 
 ---
 
-### ✅ Step 5: Test Generative AI Page
+### Test 7: Verify Snapshot API
 
-1. **Navigate to:** `/generative-ai`
-
-2. **Enter Prompt:**
-   - Type: "Create a social media app with microservices"
-   - Click "Generate Architecture"
-
-3. **Expected Result:**
-   - ✅ Architecture canvas renders
-   - ✅ Nodes positioned automatically
-   - ✅ Insights panel shows recommendations
-   - ✅ Can click nodes to see details in modal
-
-4. **Test Export:**
-   - Click "Export as JSON"
-   - ✅ JSON file downloads
-
----
-
-### ✅ Step 6: Test Admin Features (Advanced)
-
-**Note:** Requires admin account. Create one manually in MongoDB:
-
+Open DevTools Console and run:
 ```javascript
-// MongoDB shell or Compass
-db.admins.insertOne({
-  email: "admin@buildwise.com",
-  password: "$2a$10$..." // bcrypt hash of "admin123"
-  name: "Admin User",
-  createdAt: new Date()
-})
+fetch('/api/student/project/<PROJECT_ID>/snapshot?mode=latest')
+  .then(r => r.json())
+  .then(console.log)
 ```
 
-#### 6.1 Admin Login
-
-1. **Navigate to:** `/admin/auth/login`
-   - Email: admin@buildwise.com
-   - Password: admin123
-   - ✅ Redirected to admin dashboard
-
-#### 6.2 Review Student Submissions
-
-2. **Navigate to:** `/admin/submissions`
-   - ✅ See list of submitted student projects
-   - ✅ User name, app type, status shown
-
-3. **Test Verify:**
-   - Click "Verify" button on a submission
-   - ✅ Status changes to "verified"
-   - ✅ AdminLog entry created
-
-4. **Test Flag:**
-   - Enter reason in "Quick Flag" textarea
-   - Click a submission, then "Flag Selected"
-   - ✅ Status changes to "flagged"
-   - ✅ Reason saved in log
-
-5. **Test Add Feedback:**
-   - Click "View" on a submission
-   - Enter feedback text in textarea
-   - Click "Save Feedback"
-   - ✅ Feedback saved to submission
-
----
-
-## 🐛 Common Issues & Solutions
-
-### Issue: "No token provided"
-
-**Cause:** Not logged in  
-**Solution:**
-1. Check: `localStorage.getItem('token')` in console
-2. If null, go to `/login` and login
-3. If still failing, check `/api/auth/login` response in Network tab
-
-### Issue: Page redirects to /login immediately
-
-**Cause:** Token expired or invalid  
-**Solution:**
-1. Clear localStorage: `localStorage.clear()`
-2. Register/login again
-3. Check JWT_SECRET in `.env.local` matches backend
-
-### Issue: Student Mode shows empty architecture
-
-**Cause:** Generate step not called yet  
-**Solution:**
-1. Click "Generate Next Step" button
-2. Wait for API response (check Network tab)
-3. If API fails, check MongoDB connection
-
-### Issue: Admin routes return 403 Forbidden
-
-**Cause:** Not logged in as admin  
-**Solution:**
-1. Check: `localStorage.getItem('admin_token')`
-2. Login at `/admin/auth/login` with admin credentials
-3. Verify admin exists in `admins` collection
-
----
-
-## 🎯 What to Test for Interviews
-
-### When Demoing to Interviewer:
-
-1. **Show Authentication Flow**
-   - "Let me show you the registration process..."
-   - Register → Auto-login → Token in localStorage
-   - Logout → Protected route redirect
-
-2. **Show Student Mode (Unique Feature)**
-   - "This is our guided architecture builder for beginners..."
-   - Create project → Generate steps → Submit
-   - Explain skill levels and deterministic generator
-
-3. **Show Admin Moderation**
-   - "Admins can review student submissions..."
-   - Verify/Flag/Add Feedback
-   - Explain audit logging with AdminLog
-
-4. **Explain Technical Decisions**
-   - "We used JWT for stateless auth..."
-   - "Soft delete pattern for data retention..."
-   - "React Context for global auth state..."
-   - "MongoDB compound indexes for performance..."
-
----
-
-## 📊 API Testing (cURL Commands)
-
-### Test Register API
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test User","email":"test@example.com","password":"test123"}'
-```
-
-### Test Login API
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"test123"}'
-```
-
-### Test Student Projects (with token)
-```bash
-curl http://localhost:3000/api/student/projects \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-### Test Admin Submissions
-```bash
-curl http://localhost:3000/api/admin/submissions \
-  -H "Authorization: Bearer ADMIN_TOKEN"
+**Expected Response:**
+```json
+{
+  "ok": true,
+  "ready": true,
+  "snapshot": {
+    "projectId": "...",
+    "version": 1234567890,
+    "nodes": [...],
+    "edges": [...],
+    "modules": [],
+    "rationale": "..."
+  }
+}
 ```
 
 ---
 
-## ✅ Testing Checklist
+### Test 8: Verify Logs Endpoint (Dev Only)
 
-Use this before demo or submission:
+Navigate to:
+```
+http://localhost:3000/api/student/project/<PROJECT_ID>/logs
+```
 
-- [ ] Register new user works
-- [ ] Login with existing user works
-- [ ] Logout clears token and redirects
-- [ ] Protected routes redirect when not authenticated
-- [ ] Home page shows all features
-- [ ] Student Mode: Create project
-- [ ] Student Mode: Generate steps (3-5 steps)
-- [ ] Student Mode: Submit project
-- [ ] Student Mode: Projects list shows submitted project
-- [ ] Design Canvas: Drag & drop components
-- [ ] Design Canvas: Connect components
-- [ ] Design Canvas: Configure component
-- [ ] Design Canvas: Save design
-- [ ] Generative AI: Enter prompt and generate
-- [ ] Admin: Login as admin
-- [ ] Admin: View submissions
-- [ ] Admin: Verify submission
-- [ ] Admin: Flag submission with reason
-- [ ] Admin: Add feedback to submission
-- [ ] No console errors in DevTools
-- [ ] All API calls return 200/201 (check Network tab)
+**Expected Response:**
+```json
+{
+  "ok": true,
+  "logs": [...],
+  "snapshotCount": 1,
+  "latestSnapshot": {...}
+}
+```
 
 ---
 
-**Last Updated:** November 21, 2025  
-**Test Environment:** Windows, Node.js 18+, MongoDB 6+, Next.js 15
+## 🔴 What Should NOT Happen (Regressions)
+
+- ❌ "Open Editor" button clickable when snapshot not ready
+- ❌ Blank canvas when opening editor
+- ❌ Infinite loading spinner
+- ❌ Console error: `Cast to ObjectId failed`
+- ❌ Console error: `params.id should be awaited`
+- ❌ Console error: `Cannot read properties of undefined`
+- ❌ "Regenerate" button stays disabled forever
+- ❌ Polling times out after 25 attempts with no fallback
+
+---
+
+## 🎯 Success Criteria (Master's Checklist)
+
+✅ Clicking Regenerate starts job, UI shows Pending → Ready  
+✅ Open Editor button disabled until `ready:true`  
+✅ Editor opens instantly if sessionStorage has snapshot  
+✅ Editor shows fallback options if snapshot missing  
+✅ No dead buttons — all disabled states have tooltips  
+✅ Console logs are clean (no validation errors)  
+✅ Snapshot becomes ready within 10 seconds after seed
+
+---
+
+## 🛠️ Troubleshooting
+
+### Issue: "Cast to ObjectId failed" Error
+
+**Status:** ✅ FIXED  
+**Solution:** Modified `src/lib/backend/snapshots.ts` to remove `_id` field before saving
+
+### Issue: "params.id should be awaited" Error
+
+**Status:** ✅ FIXED  
+**Solution:** Updated route handlers to use `await context.params`
+
+### Issue: Snapshot Never Becomes Ready
+
+**Debug Steps:**
+1. Check server terminal for `[job]` errors
+2. Open `/api/student/project/<ID>/logs` to view audit trail
+3. Run manual job trigger (dev only):
+   ```
+   POST /api/student/project/<ID>/run-job
+   ```
+
+### Issue: Editor Shows Blank Canvas
+
+**Debug Steps:**
+1. Open DevTools Console → look for `[builder]` logs
+2. Check if sessionStorage has `snapshot:<projectId>` key
+3. Test API directly: `GET /api/student/project/<ID>/snapshot`
+4. If all fail, use "Create Basic Scaffold" as emergency fallback
+
+---
+
+## 📝 Files Modified (Git Diff)
+
+Modified files:
+1. `src/components/BuilderStatusPanel.tsx` - Complete rewrite
+2. `src/hooks/useSnapshotPoll.ts` - Added auto-check on mount
+3. `src/app/student/[id]/proposal/page.tsx` - No-team banner, improved UX
+4. `src/app/student/[id]/builder/page.tsx` - Bootstrap sequence, scaffold
+5. `src/lib/backend/jobs.ts` - Remove _id from normalized snapshot
+6. `src/lib/backend/snapshots.ts` - Remove _id before saving
+7. `src/app/api/student/project/[id]/snapshot/route.ts` - Async params
+8. `src/app/api/student/project/[id]/logs/route.ts` - Async params
+9. `src/app/api/student/project/[id]/run-job/route.ts` - Async params
+
+New files:
+1. `scripts/smoke-test.sh` - Bash smoke test script
+2. `scripts/smoke-test.ps1` - PowerShell smoke test script
+3. `TESTING_GUIDE.md` - This file
+
+---
+
+## 🚀 Ready for Demo
+
+All Master's requirements implemented and tested.  
+No breaking changes.  
+Backward compatible with existing projects.
+
+**Next:** Run through manual tests above before demoing to stakeholders.

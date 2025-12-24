@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
-import { getAuthUser } from "@/lib/backend/authMiddleware";
+import { requireRoleOrThrow } from "@/lib/backend/auth";
 import { StudentProject } from "@/lib/backend/models/StudentProject";
 import { StudentSubmission } from "@/lib/backend/models/StudentSubmission";
 import { v4 as uuidv4 } from "uuid";
 
-export async function POST(req: Request) {
-  const auth = getAuthUser(req);
-  if (auth instanceof NextResponse) return auth;
-  
-  await connectDB();
-  
+export async function POST(req: NextRequest) {
   try {
+    const user = await requireRoleOrThrow(req, ["student", "teacher", "admin"]);
+    await connectDB();
+  
     const body = await req.json();
     const { projectId, notes } = body;
     
@@ -19,7 +17,9 @@ export async function POST(req: Request) {
     
     const project = await StudentProject.findById(projectId);
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    if (project.userId.toString() !== auth.id) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (project.userId.toString() !== user.userId && user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Structured validation with actionable suggestions
     const errors: any[] = [];

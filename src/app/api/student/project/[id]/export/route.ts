@@ -1,25 +1,33 @@
 // GET /api/student/project/[id]/export
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
-import { StudentProject } from "@/lib/backend/models/StudentProject";
-import { getAuthUser } from "@/lib/backend/authMiddleware";
+import { StudentProject } from "@/lib/backend/projects";
+import { requireRoleOrThrow } from "@/lib/backend/auth";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = getAuthUser(req);
-  if (auth instanceof NextResponse) return auth;
+  try {
+    const user = await requireRoleOrThrow(req, ["student", "teacher", "admin"]);
+    await connectDB();
 
-  await connectDB();
+    const { id: projectId } = await params;
+    const project = await StudentProject.findById(projectId).lean();
 
-  const projectId = params.id;
-  const project = await StudentProject.findOne({ _id: projectId, userId: auth.id }).lean();
+    if (!project) {
+      return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
+    }
 
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    // Auth check: allow access if user owns project or is admin/teacher
+    if (project.userId && project.userId.toString() !== user.userId && user.role !== "admin" && user.role !== "teacher") {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    // Return complete project snapshot for export
+    return NextResponse.json({ ok: true, project }, { status: 200 });
+  } catch (err: unknown) {
+    const error = err as { status?: number; message?: string };
+    return NextResponse.json({ error: error.message || "Server error" }, { status: error.status || 500 });
   }
-
-  // Return complete project snapshot for export
-  return NextResponse.json({ project }, { status: 200 });
 }

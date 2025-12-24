@@ -1,7 +1,9 @@
 // src/app/student/[id]/page.tsx
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NavHeader from "@/components/NavHeader";
 
@@ -15,17 +17,38 @@ function getToken() {
  * Expects nodes: [{ id, label, meta? }] edges: [{ from, to }]
  */
 
+/**
+ * Fit nodes into an SVG viewBox and return { viewBox, scale }
+ */
+function computeViewBox(nodes: { x: number; y: number; width?: number; height?: number }[], padding = 80) {
+  if (!nodes || nodes.length === 0) return { viewBox: `0 0 900 500`, scale: 1 };
+  const xs = nodes.map(n => n.x);
+  const ys = nodes.map(n => n.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const width = Math.max(400, maxX - minX + padding * 2);
+  const height = Math.max(300, maxY - minY + padding * 2);
+  const vbX = minX - padding;
+  const vbY = minY - padding;
+  return { viewBox: `${vbX} ${vbY} ${width} ${height}`, scale: 1 };
+}
+
 export default function StudentEditorPage() {
-  const router = useRouter();
   const params = useParams() as { id?: string };
   const projectId = params?.id || "";
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewArch, setViewArch] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
+  const [svgViewBox, setSvgViewBox] = useState<string>("0 0 900 500");
+  const [zoom, setZoom] = useState<number>(1);
+  const [expandedRoles, setExpandedRoles] = useState<Set<string>>(new Set());
 
   const loadProject = useCallback(async () => {
     if (!projectId) return;
@@ -52,7 +75,6 @@ export default function StudentEditorPage() {
       setSelectedStep(data.project.steps?.length ? data.project.steps.length : null);
     } catch (e: unknown) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "Error loading");
     } finally {
       setLoading(false);
     }
@@ -66,7 +88,6 @@ export default function StudentEditorPage() {
   async function generateNextStep() {
     if (!projectId) return;
     setBusy(true);
-    setError(null);
     try {
       const token = getToken();
       const res = await fetch("/api/student/project/generate-step", {
@@ -96,7 +117,7 @@ export default function StudentEditorPage() {
       setSelectedStep(updated.steps.length);
     } catch (e: unknown) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "Failed to generate step");
+      alert("Failed to generate step");
     } finally {
       setBusy(false);
     }
@@ -106,7 +127,6 @@ export default function StudentEditorPage() {
   async function saveArchitecture() {
     if (!projectId) return;
     setBusy(true);
-    setError(null);
     try {
       const token = getToken();
       const res = await fetch("/api/student/project/save-architecture", {
@@ -124,11 +144,34 @@ export default function StudentEditorPage() {
       alert("Architecture saved.");
     } catch (e: unknown) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "Save failed");
+      alert("Save failed");
     } finally {
       setBusy(false);
     }
   }
+
+  // Auto-fit viewBox whenever viewArch changes
+  useEffect(() => {
+    const nodes = viewArch?.nodes || [];
+    // If nodes have no x/y, auto-layout horizontally
+    const hasCoords = nodes.every((n: any) => typeof n.x === "number");
+    if (!hasCoords && nodes.length > 0) {
+      const w = Math.max(120, (nodes.length ? Math.floor(900 / Math.max(1, nodes.length)) : 120));
+      nodes.forEach((n: any, i: number) => {
+        n.x = 100 + i * (w + 60);
+        n.y = 220;
+      });
+      setViewArch(prev => ({ ...prev, nodes }));
+    }
+    const vb = computeViewBox(nodes, 120);
+    setSvgViewBox(vb.viewBox);
+    setZoom(1);
+  }, [viewArch]);
+
+  // Zoom handlers
+  function zoomIn() { setZoom(z => Math.min(2.5, +(z + 0.2).toFixed(2))); }
+  function zoomOut() { setZoom(z => Math.max(0.5, +(z - 0.2).toFixed(2))); }
+  function resetZoom() { setZoom(1); }
 
   // Load a particular step from project.steps into viewArch
   function loadStep(stepNum: number) {
@@ -139,40 +182,32 @@ export default function StudentEditorPage() {
     setSelectedStep(stepNum);
   }
 
-  // Simple renderer for nodes and edges
-  function Canvas({ nodes, edges }: { nodes: any[]; edges: any[] }) {
-    // determine positions
-    const w = 900;
-    const h = 420;
-    const count = nodes.length || 0;
-    const startX = 80;
-    const gap = count > 1 ? Math.max(140, (w - 160) / Math.max(1, count - 1)) : 0;
-
-    const positioned = (nodes || []).map((n:any,i:number) => {
-      const x = startX + i * gap;
-      const y = 160 + (Math.sin(i)*10); // tiny variance for visual interest
-      return { ...n, x, y };
+  // Toggle role expansion
+  function toggleRoleExpand(roleId: string) {
+    setExpandedRoles(prev => {
+      const next = new Set(prev);
+      if (next.has(roleId)) next.delete(roleId);
+      else next.add(roleId);
+      return next;
     });
+  }
 
-    // map edges to coordinates
-    const edgePaths = (edges || []).map((e:any, idx:number) => {
-      const from = positioned.find((p:any) => p.id === e.from) || positioned[e.from] || null;
-      const to = positioned.find((p:any) => p.id === e.to) || positioned[e.to] || null;
-      if (!from || !to) return null;
-      const sx = from.x + 80;
-      const sy = from.y + 12;
-      const tx = to.x - 20;
-      const ty = to.y + 12;
-      // simple cubic curve
-      const cx1 = sx + (tx - sx) * 0.3;
-      const cx2 = sx + (tx - sx) * 0.7;
-      const d = `M ${sx} ${sy} C ${cx1} ${sy} ${cx2} ${ty} ${tx} ${ty}`;
-      return { d, key: idx, sx, sy, tx, ty };
-    }).filter(Boolean);
-
+  // Enhanced Canvas renderer with auto-fit and zoom
+  function Canvas({ nodes, edges }: { nodes: any[]; edges: any[] }) {
     return (
       <div className="bg-white rounded-lg border p-4 shadow">
-        <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ maxWidth: "100%", height: 420 }}>
+        <svg
+          viewBox={svgViewBox}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ 
+            width: "100%", 
+            height: 520, 
+            overflow: "visible", 
+            transformOrigin: "center", 
+            transform: `scale(${zoom})`,
+            transition: "transform 0.2s ease"
+          }}
+        >
           <defs>
             <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
@@ -184,20 +219,45 @@ export default function StudentEditorPage() {
           </defs>
 
           {/* edges */}
-          {edgePaths.map((ep:any) => (
-            <path key={ep.key} d={ep.d} stroke="#3b82f6" strokeWidth={3} fill="none" strokeLinecap="round" style={{ opacity: 0.95 }} />
-          ))}
+          {edges?.map((e, idx) => {
+            const src = nodes.find((n: any) => n.id === e.from);
+            const tgt = nodes.find((n: any) => n.id === e.to);
+            if (!src || !tgt) return null;
+            const sx = src.x + 80;
+            const sy = src.y + 20;
+            const tx = tgt.x;
+            const ty = tgt.y + 20;
+            const cx1 = sx + (tx - sx) * 0.35;
+            const cx2 = sx + (tx - sx) * 0.65;
+            const d = `M ${sx} ${sy} C ${cx1} ${sy} ${cx2} ${ty} ${tx} ${ty}`;
+            return <path key={idx} d={d} stroke="#6b46c1" strokeWidth={3} fill="none" strokeLinecap="round" style={{ opacity: 0.95 }} />;
+          })}
 
           {/* nodes */}
-          {positioned.map((n:any, idx:number) => (
-            <g key={n.id || idx} transform={`translate(${n.x}, ${n.y})`}>
-              <foreignObject x={-60} y={-24} width={140} height={48}>
-                <div className="p-2 border rounded-md" style={{ background: "#fff", border: "1px solid #c7ddff", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{n.label || n.title || `Node ${idx+1}`}</div>
-                  <div style={{ fontSize: 11, color: "#666" }}>{n.type || (n.meta && n.meta.description) || ""}</div>
-                </div>
-              </foreignObject>
-            </g>
+          {nodes?.map((n: any) => (
+            <foreignObject key={n.id} x={n.x - 60} y={n.y - 20} width={160} height={60}>
+              <div
+                style={{
+                  width: "160px",
+                  height: "60px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "8px",
+                  borderRadius: "12px",
+                  background: "#fff",
+                  boxShadow: "0 6px 18px rgba(11,15,30,0.06)",
+                  border: "1px solid rgba(99,102,241,0.12)",
+                  fontSize: 13,
+                  lineHeight: "1.1",
+                  textAlign: "center",
+                  whiteSpace: "pre-line",
+                  fontWeight: 600
+                }}
+              >
+                {n.label}
+              </div>
+            </foreignObject>
           ))}
         </svg>
       </div>
@@ -313,27 +373,114 @@ export default function StudentEditorPage() {
 
             <StepHistory />
 
-            {/* Roles card reused */}
+            {/* Roles card with milestone-grouped tasks */}
             <div className="bg-white rounded-xl p-4 shadow mb-4">
-              <h4 className="font-semibold mb-2">Roles</h4>
+              <h4 className="font-semibold mb-2">Roles & Tasks</h4>
               {project.roles && project.roles.length ? (
-                <ul className="text-sm space-y-2">
-                  {project.roles.map((r:any) => (
-                    <li key={r.id} className="p-2 border rounded">
-                      <div className="font-medium">{r.title}</div>
-                      <div className="text-xs text-gray-500">{r.description}</div>
-                      <ul className="text-xs list-disc ml-4">
-                        {r.tasks.map((t:string, i:number) => <li key={i}>{t}</li>)}
-                      </ul>
-                    </li>
-                  ))}
-                </ul>
-              ) : <div className="text-sm text-gray-500">No roles yet</div>}
+                <div className="space-y-3">
+                  {project.roles.map((r:any) => {
+                    const isExpanded = expandedRoles.has(r.id);
+                    const taskCount = r.tasks?.length || 0;
+                    const completedCount = r.tasks?.filter((t:any) => t.done).length || 0;
+                    
+                    // Group tasks by milestone
+                    const tasksByMilestone: Record<string, any[]> = {};
+                    (r.tasks || []).forEach((t:any) => {
+                      const mId = t.milestoneId || "none";
+                      if (!tasksByMilestone[mId]) tasksByMilestone[mId] = [];
+                      tasksByMilestone[mId].push(t);
+                    });
+
+                    return (
+                      <div key={r.id} className="bg-white rounded p-3 shadow-sm border">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-medium text-sm">{r.title}</div>
+                            <div className="text-xs text-gray-500 mt-1">{r.description}</div>
+                          </div>
+                          <div className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                            {completedCount}/{taskCount}
+                          </div>
+                        </div>
+
+                        {/* Learning resources */}
+                        {r.learning && r.learning.length > 0 && (
+                          <div className="mt-2 mb-2 text-xs bg-blue-50 p-2 rounded">
+                            <div className="font-semibold mb-1">📚 Learning Resources:</div>
+                            {r.learning.slice(0, 2).map((l:any, i:number) => (
+                              <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">
+                                • {l.title}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Tasks grouped by milestone */}
+                        <div className="mt-2 space-y-2">
+                          {Object.entries(tasksByMilestone).slice(0, isExpanded ? 999 : 1).map(([mId, tasks]) => {
+                            const milestone = project.milestones?.find((m:any) => m.id === mId);
+                            return (
+                              <div key={mId} className="border-l-2 border-gray-200 pl-2">
+                                {milestone && <div className="text-xs font-semibold text-gray-600 mb-1">{milestone.title}</div>}
+                                {tasks.map((t:any) => (
+                                  <div key={t.id} className="flex items-start gap-2 mb-1">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={t.done} 
+                                      onChange={async (e) => {
+                                        const newDone = e.target.checked;
+                                        const token = getToken();
+                                        try {
+                                          await fetch("/api/student/project/role-task/update", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                                            body: JSON.stringify({ projectId: project._id, roleId: r.id, taskId: t.id, done: newDone })
+                                          });
+                                          // Optimistic update
+                                          t.done = newDone;
+                                          setProject({...project});
+                                        } catch (err) {
+                                          console.error("Task update failed", err);
+                                        }
+                                      }}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-xs">{t.title}</div>
+                                      {t.description && <div className="text-xs text-gray-500">{t.description}</div>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {Object.keys(tasksByMilestone).length > 1 && (
+                          <button 
+                            onClick={() => toggleRoleExpand(r.id)} 
+                            className="mt-2 text-xs text-indigo-600 hover:underline"
+                          >
+                            {isExpanded ? "Show less" : `Show all milestones (${Object.keys(tasksByMilestone).length})`}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <div className="text-sm text-gray-500">No roles yet. They&apos;ll appear after project creation (background job).</div>}
             </div>
 
-            {/* Milestones */}
+            {/* Milestones with progress badge */}
             <div className="bg-white rounded-xl p-4 shadow">
-              <h4 className="font-semibold mb-2">Milestones</h4>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-semibold">Milestones</h4>
+                {project.milestones && project.milestones.length > 0 && (
+                  <div className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                    {project.milestones.filter((m:any) => m.done).length}/{project.milestones.length} done
+                  </div>
+                )}
+              </div>
               {project.milestones && project.milestones.length ? (
                 <ul className="text-sm space-y-2">
                   {project.milestones.map((m:any) => (
@@ -355,7 +502,7 @@ export default function StudentEditorPage() {
           <div className="col-span-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">Student Mode — Editor</h2>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <button onClick={generateNextStep} disabled={busy} className="px-3 py-2 bg-indigo-600 text-white rounded">Generate Next Step</button>
                 <button onClick={saveArchitecture} disabled={busy} className="px-3 py-2 border rounded">Save Architecture</button>
                 <button onClick={async () => {
@@ -370,11 +517,18 @@ export default function StudentEditorPage() {
                     a.href = URL.createObjectURL(blob);
                     a.download = `${project._id}_snapshot.json`;
                     a.click();
-                  } catch (e) {
+                  } catch {
                     alert("Export failed");
                   }
                 }} disabled={busy} className="px-3 py-2 border rounded">Export JSON</button>
                 <button onClick={handleSubmit} disabled={busy} className="px-3 py-2 bg-green-600 text-white rounded">Submit for Review</button>
+                
+                {/* Zoom controls */}
+                <div className="inline-flex items-center gap-1 ml-3 border rounded">
+                  <button className="px-3 py-2 hover:bg-gray-50 rounded-l" onClick={zoomOut} title="Zoom Out">−</button>
+                  <button className="px-3 py-2 hover:bg-gray-50 text-xs" onClick={resetZoom} title="Reset Zoom">{Math.round(zoom * 100)}%</button>
+                  <button className="px-3 py-2 hover:bg-gray-50 rounded-r" onClick={zoomIn} title="Zoom In">+</button>
+                </div>
               </div>
             </div>
 
@@ -385,10 +539,34 @@ export default function StudentEditorPage() {
               {(project.steps && project.steps.length) ? project.steps.slice(Math.max(0, project.steps.length-4)).reverse().map((s:any, i:number) => (
                 <div key={i} className="bg-white p-3 rounded shadow">
                   <div className="text-xs text-gray-500">Step {s.step}</div>
-                  <div className="font-medium">{s.short || "Step summary"}</div>
+                  <div className="font-medium">{s.title || s.short || "Step summary"}</div>
                   <div className="text-sm text-gray-600 mt-2">
                     {(s.explanations || []).map((ex:string, idx:number) => <div key={idx} className="mb-2 text-sm">{ex}</div>)}
                   </div>
+
+                  {/* Implementation Guide (for step 2+) */}
+                  {s.implementationGuide && (s.implementationGuide.tasks?.length > 0 || s.implementationGuide.resources?.length > 0) && (
+                    <div className="mt-3 p-2 bg-blue-50 border-l-2 border-blue-400 rounded">
+                      <div className="text-xs font-semibold text-blue-700 mb-1">🛠️ How to implement ({project.skillLevel})</div>
+                      {s.implementationGuide.tasks && s.implementationGuide.tasks.length > 0 && (
+                        <ul className="text-xs text-gray-700 ml-4 mb-2 list-disc space-y-1">
+                          {s.implementationGuide.tasks.map((task:string, ti:number) => (
+                            <li key={ti}>{task}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {s.implementationGuide.resources && s.implementationGuide.resources.length > 0 && (
+                        <div className="text-xs">
+                          <div className="font-semibold text-blue-600 mb-1">📚 Learning Resources:</div>
+                          {s.implementationGuide.resources.slice(0, 2).map((r:any, ri:number) => (
+                            <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="block text-blue-600 hover:underline mb-1">
+                              • {r.title}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )) : (
                 <div className="text-sm text-gray-500">No explanations yet. Generate a step.</div>

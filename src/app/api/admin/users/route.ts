@@ -1,10 +1,10 @@
-// app/api/admin/users/route.ts
-import { NextResponse } from "next/server";
+// app/api/admin/users/route.ts  //List All Users for admin
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { User } from "@/lib/backend/models/User";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     // Step 1: Authenticate user (using middleware!)
     const authResult = getAuthUser(req);

@@ -118,3 +118,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom panel utilities for breathing space and visual hierarchy */
+@layer utilities {
+  .panel-soft {
+    @apply bg-zinc-900/60 backdrop-blur-sm border border-zinc-800/20 rounded-xl;
+  }
+  .panel-elev {
+    @apply bg-zinc-900/70 rounded-xl;
+    box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
+  }
+  .bg-subtle-grid {
+    background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), 
+                      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}

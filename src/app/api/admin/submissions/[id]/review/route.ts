@@ -1,36 +1,64 @@
 // app/api/admin/submissions/[id]/review/route.ts
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
-import { StudentSubmission } from "@/lib/backend/models/StudentSubmission";
-import { AdminLog } from "@/lib/backend/models/AdminLog";
-import { getAuthUser } from "@/lib/backend/authMiddleware";
+import { StudentSubmissionModel } from "@/lib/backend/models/StudentSubmission";
+import { AuditModel } from "@/lib/backend/models/Audit";
+import { requireRoleOrThrow } from "@/lib/backend/auth";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const auth = getAuthUser(req);
-  if (auth instanceof NextResponse) return auth;
-  if (auth.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
-  const id = params.id;
-  const body = await req.json();
-  const note = body?.note || "";
-  const status = body?.status || "reviewed"; // allow reviewed/verified/flagged
-
-  await connectDB();
-  const submission = await StudentSubmission.findById(id);
-  if (!submission) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  submission.adminFeedback = { adminId: auth.id, note, createdAt: new Date() };
-  submission.status = status;
-  await submission.save();
-
-  await AdminLog.create({
-    adminId: auth.id,
-    designId: submission.projectId,
-    action: "submission:review",
-    meta: { submissionId: id, note, status },
-    ip: req.headers.get("x-forwarded-for") || "unknown",
-    userAgent: req.headers.get("user-agent") || "",
-  });
-
-  return NextResponse.json({ ok: true, submissionId: id });
+/**
+ * Review a student submission
+ * Body: { action: "approve"|"reject"|"request_changes", notes?: string, grade?: number }
+ * Only teacher/admin allowed
+ */
+export async function POST(req: Request, context: RouteContext) {
+  try {
+    await connectDB();
+    const user = requireRoleOrThrow(req, ["teacher", "admin"]);
+    const { action, notes, grade } = await req.json();
+    const { id } = await context.params;
+    
+    const submission = await StudentSubmissionModel.findById(id);
+    if (!submission) {
+      return NextResponse.json(
+        { ok: false, error: "not found" }, 
+        { status: 404 }
+      );
+    }
+    
+    // Update submission status based on action
+    submission.status = 
+      action === "approve" ? "approved" : 
+      action === "reject" ? "rejected" : 
+      "reviewed";
+    
+    if (notes) {
+      submission.notes = notes;
+    }
+    
+    if (grade !== undefined) {
+      submission.set("grade", grade);
+    }
+    
+    await submission.save();
+    
+    // Create audit record
+    await AuditModel.create({ 
+      projectId: submission.projectId, 
+      action: `submission_${action}`, 
+      actor: user.userId, 
+      details: { submissionId: submission._id, notes, grade } 
+    });
+    
+    return NextResponse.json({ ok: true, submission });
+  } catch (err: unknown) {
+    const error = err as { status?: number; message?: string };
+    return NextResponse.json(
+      { ok: false, error: error?.message || "internal" }, 
+      { status: error?.status || 500 }
+    );
+  }
 }

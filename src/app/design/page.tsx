@@ -14,8 +14,7 @@ import ComponentPallete from "@/components/canvas/ComponentPallete";
 import CanvasArea from "@/components/canvas/CanvasArea";
 import ConfigModal from "@/components/canvas/ConfigModal";
 import AiDrawer from "@/components/AiDrawer";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import NavHeader from "@/components/NavHeader";
+import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
 const STORAGE_KEY = "bw:v1:design";
 
@@ -308,41 +307,49 @@ function DesignPageInner() {
   }
 
   return (
-    <main className="flex flex-col h-full w-full p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
-          🧠 Start New Design
-        </h1>
+    <main className="flex flex-col h-full w-full space-y-6">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 p-6">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+              Manual Design Canvas
+            </h1>
+            <p className="text-zinc-400 text-sm">Drag and drop components to build your architecture</p>
+          </div>
 
-        {/* Enhanced Toolbar */}
-        <div className="flex items-center gap-4 bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-2">
+          {/* Enhanced Toolbar */}
+          <div className="flex items-center gap-3 bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700 px-4 py-3">
           {/* Primary Actions */}
           <div className="flex items-center gap-2">
             <button
               onClick={saveNow}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm shadow-lg shadow-blue-500/20 cursor-pointer"
             >
               💾 Save
             </button>
             <button
               onClick={loadNow}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-medium text-sm cursor-pointer"
             >
               📂 Load
             </button>
             <button
               onClick={newCanvas}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors font-medium text-sm cursor-pointer"
             >
               ✨ New
             </button>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-200"></div>
+          <div className="w-px h-8 bg-zinc-600"></div>
 
           {/* Auto-save Toggle */}
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 cursor-pointer">
             <div className="relative">
               <input
                 type="checkbox"
@@ -352,7 +359,7 @@ function DesignPageInner() {
               />
               <div
                 className={`w-10 h-5 rounded-full transition-colors ${
-                  autoSave ? "bg-blue-600" : "bg-gray-300"
+                  autoSave ? "bg-gradient-to-r from-blue-500 to-cyan-500" : "bg-zinc-700"
                 }`}
               >
                 <div
@@ -366,7 +373,7 @@ function DesignPageInner() {
           </label>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-200"></div>
+          <div className="w-px h-8 bg-zinc-600"></div>
 
           {/* AI Analysis Section */}
           <div className="flex items-center gap-2">
@@ -378,7 +385,7 @@ function DesignPageInner() {
                   aiDrawerRef.current?.analyze();
                 }, 100);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-purple-600 text-white hover:bg-purple-700"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg transition-opacity font-medium text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/20 cursor-pointer"
             >
               🤖 AI Analysis
             </button>
@@ -399,12 +406,12 @@ function DesignPageInner() {
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              className="flex items-center gap-2 px-3 py-2 text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors font-medium text-sm cursor-pointer"
             >
               📤 Export
             </button>
 
-            <label className="flex items-center gap-2 px-3 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm cursor-pointer">
+            <label className="flex items-center gap-2 px-3 py-2 text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-700 transition-colors font-medium text-sm cursor-pointer">
               📥 Import
               <input
                 type="file"
@@ -430,6 +437,7 @@ function DesignPageInner() {
             </label>
           </div>
         </div>
+      </div>
       </div>
 
       {/* AI Drawer */}
@@ -500,9 +508,8 @@ function DesignPageInner() {
 
 export default function DesignPage() {
   return (
-    <ProtectedRoute>
-      <NavHeader />
+    <DashboardLayoutWrapper activeNav="workspace" breadcrumb="Manual Design">
       <DesignPageInner />
-    </ProtectedRoute>
+    </DashboardLayoutWrapper>
   );
 }

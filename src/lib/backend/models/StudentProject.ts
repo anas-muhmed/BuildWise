@@ -17,6 +17,8 @@ export interface IStudentProject extends Document {
   explanations: string[];
   aiScore?: number | null;
   status: "draft" | "submitted" | "verified" | "flagged" | "deleted";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta?: any;
   roles?: {
     id: string;
     title: string;
@@ -30,6 +32,11 @@ export interface IStudentProject extends Document {
     description: string;
     done: boolean;
   }[];
+  // Privacy flag for LLM output storage
+  storeRawLLMOutput?: boolean;
+  // Optional: storage for raw LLM outputs when user opts in
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rawLLMOutputs?: any[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -53,6 +60,7 @@ const StudentProjectSchema = new Schema<IStudentProject>(
       enum: ["draft", "submitted", "verified", "flagged", "deleted"],
       default: "draft",
     },
+    meta: { type: Schema.Types.Mixed, default: {} },
 
     // === NEW: role-based distribution (backward compatible) ===
     roles: {
@@ -80,6 +88,12 @@ const StudentProjectSchema = new Schema<IStudentProject>(
       ],
       default: [],
     },
+    
+    // === NEW: Privacy opt-in for LLM output storage ===
+    storeRawLLMOutput: { type: Boolean, default: false },
+    
+    // === NEW: Raw LLM outputs (only stored if user opts in) ===
+    rawLLMOutputs: { type: Schema.Types.Mixed, default: [] },
   },
   { timestamps: true }
 );
