@@ -1,18 +1,21 @@
-// components/generative-ai/ArchitectureCanvas.tsx
 "use client";
-import React, { useMemo, useState } from "react";
-import { FiRefreshCcw, FiDownload, FiCpu, FiTrash2, FiZoomIn, FiZoomOut } from "react-icons/fi";
-import { FaDatabase, FaBolt, FaCogs, FaNetworkWired } from "react-icons/fa";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import NodeModal from "./NodeModal";
+import React from "react";
 
-// 🎯 LEARNING: Type Definitions
-// Shared types for our architecture nodes and connections
-export type Node = { id: string; label: string; x: number; y: number };
-export type Edge = { source: string; target: string };
+interface Node {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: { label: string };
+}
 
-// 🎯 LEARNING: Props Interface for Canvas
-interface CanvasProps {
+interface Edge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+interface ArchitectureCanvasProps {
   nodes: Node[];
   edges: Edge[];
   loading: boolean;
@@ -30,345 +33,104 @@ export default function ArchitectureCanvas({
   onRegenerate,
   onExport,
   onClear,
-}: CanvasProps) {
-  // 🎯 NEW: Modal state management
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  
-  // 🎯 PHASE 4: Search/filter state
-  const [searchQuery, setSearchQuery] = useState("");
-  
-  // 🎯 LEARNING: useMemo for Performance
-  // This only recalculates when 'nodes' array changes
-  // Prevents unnecessary calculations on every render
-  const nodeCenters = useMemo(() => {
-    const map = new Map<string, { cx: number; cy: number }>();
-    nodes.forEach((n) => map.set(n.id, { cx: n.x + 60, cy: n.y + 20 }));
-    return map;
-  }, [nodes]);
-  
-  // 🎯 PHASE 4: Check if node matches search
-  const isNodeHighlighted = (node: Node) => {
-    if (!searchQuery.trim()) return false;
-    return node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           node.id.toLowerCase().includes(searchQuery.toLowerCase());
-  };
-
-  // 🎯 LEARNING: Helper Function
-  // Pure function - no side effects, just returns icon based on label
-  const getIcon = (label: string) => {
-    const lower = label.toLowerCase();
-    if (lower.includes("db")) return <FaDatabase className="text-blue-500" />;
-    if (lower.includes("cache")) return <FaBolt className="text-yellow-500" />;
-    if (lower.includes("gateway")) return <FaNetworkWired className="text-purple-500" />;
-    if (lower.includes("service")) return <FaCogs className="text-green-600" />;
-    return <FiCpu className="text-gray-500" />;
-  };
-
+}: ArchitectureCanvasProps) {
   return (
-    <div
-      className="relative w-full h-[520px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl border shadow-inner overflow-hidden"
-      style={{
-        backgroundImage:
-          "linear-gradient(#e0e7ff 1px, transparent 1px), linear-gradient(90deg,#e0e7ff 1px, transparent 1px)",
-        backgroundSize: "32px 32px, 32px 32px",
-      }}
-    >
-      {/* 🎯 LEARNING: TransformWrapper - Enables zoom & pan functionality */}
-      {/* This wraps our canvas and provides zoom/pan controls */}
-      <TransformWrapper
-        initialScale={1}
-        minScale={0.5}
-        maxScale={3}
-        centerOnInit
-        wheel={{ step: 0.1 }}
-        doubleClick={{ disabled: true }}
-      >
-        {({ zoomIn, zoomOut, resetTransform, instance }) => (
-          <>
-            {/* 🎯 PHASE 4: Search Bar - Only shows when nodes exist */}
-            {nodes.length > 0 && (
-              <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="🔍 Search nodes..."
-                  className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-64"
-                />
-                {/* PHASE 5: Zoom Level & Node Count */}
-                <div className="flex gap-2">
-                  <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-xs font-medium text-gray-700">
-                    🔍 {Math.round((instance?.transformState.scale || 1) * 100)}%
-                  </div>
-                  <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg shadow-md border border-gray-300 text-xs font-medium text-gray-700">
-                    📊 {nodes.length} nodes • {edges.length} connections
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 🎯 CONDITIONAL RENDERING: Floating Toolbar - Only shows when nodes exist */}
-            {nodes.length > 0 && (
-              <div className="absolute top-3 right-3 flex gap-2 bg-white/80 backdrop-blur-md px-3 py-2 rounded-lg shadow-md border z-10">
-                {/* 🎯 NEW: Zoom Controls */}
-                <button 
-                  title="Zoom In" 
-                  onClick={() => zoomIn()} 
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  <FiZoomIn size={18} />
-                </button>
-                <button 
-                  title="Zoom Out" 
-                  onClick={() => zoomOut()} 
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  <FiZoomOut size={18} />
-                </button>
-                <button 
-                  title="Reset View" 
-                  onClick={() => resetTransform()} 
-                  className="hover:text-purple-600 transition-colors"
-                >
-                  <FiRefreshCcw size={18} />
-                </button>
-                <div className="border-l border-gray-300 mx-1"></div>
-                <button 
-                  title="Regenerate Design" 
-                  onClick={onRegenerate} 
-                  className="hover:text-blue-600 transition-colors"
-                >
-                  <FiRefreshCcw size={18} />
-                </button>
-                <button 
-                  title="Export JSON" 
-                  onClick={onExport} 
-                  className="hover:text-green-600 transition-colors"
-                >
-                  <FiDownload size={18} />
-                </button>
-                <button 
-                  title="Clear" 
-                  onClick={onClear} 
-                  className="hover:text-red-600 transition-colors"
-                >
-                  <FiTrash2 size={18} />
-                </button>
-              </div>
-            )}
-
-            {/* 🎯 TransformComponent - The zoomable/pannable area */}
-            <TransformComponent
-              wrapperStyle={{ width: "100%", height: "100%" }}
-              contentStyle={{ width: "100%", height: "100%" }}
-            >
-              {/* 🎯 SVG LAYER: Edges with auto-layout offset for parallel connections */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        {edges.map((e, i) => {
-          const src = nodeCenters.get(e.source);
-          const tgt = nodeCenters.get(e.target);
-          if (!src || !tgt) return null;
-          
-          // 🎯 PHASE 4: Detect parallel edges and apply offset
-          const parallelEdges = edges.filter(edge => 
-            (edge.source === e.source && edge.target === e.target) ||
-            (edge.source === e.target && edge.target === e.source)
-          );
-          const parallelIndex = parallelEdges.findIndex(edge => 
-            edge.source === e.source && edge.target === e.target
-          );
-          const isParallel = parallelEdges.length > 1;
-          const offset = isParallel ? (parallelIndex - 0.5) * 30 : 0;
-          
-          // 🎯 LEARNING: Quadratic Bezier Curve with dynamic offset
-          const midX = (src.cx + tgt.cx) / 2;
-          const midY = (src.cy + tgt.cy) / 2 + offset;
-          const curveVariation = Math.sin(i * 0.5) * 15; // Add organic curve
-          const path = `M ${src.cx} ${src.cy} Q ${midX + curveVariation} ${midY} ${tgt.cx} ${tgt.cy}`;
-          
-          // 🎯 PHASE 5: Connection strength based on type
-          const srcNode = nodes.find(n => n.id === e.source);
-          const tgtNode = nodes.find(n => n.id === e.target);
-          const isImportant = 
-            (srcNode?.label.includes("GATEWAY") || tgtNode?.label.includes("GATEWAY")) ||
-            (srcNode?.label.includes("DATABASE") || tgtNode?.label.includes("DATABASE"));
-          const strokeWidth = isImportant ? 3.5 : 2.5;
-          
-          return (
-            <path
-              key={i}
-              d={path}
-              stroke="#2563eb"
-              strokeWidth={strokeWidth}
-              fill="none"
-              strokeLinecap="round"
-              markerEnd="url(#arrowhead)"
-              className="animate-drawPath"
-              style={{
-                strokeDasharray: "1000",
-                strokeDashoffset: "1000",
-                animation: `drawPath 1s ease-out ${i * 0.1}s forwards`,
-              }}
-            />
-          );
-        })}
-        <defs>
-          {/* 🎯 SVG Marker: Arrowhead at end of connections */}
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="8"
-            refY="3.5"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-          </marker>
-        </defs>
-      </svg>
-
-      {/* 🎯 NODES LAYER: Component boxes with search highlighting + PHASE 5 tooltips */}
-      {nodes.map((n, index) => {
-        const isHighlighted = isNodeHighlighted(n);
-        const isFiltered = searchQuery.trim() && !isHighlighted;
-        const connectionCount = edges.filter(e => e.source === n.id || e.target === n.id).length;
-        
-        return (
-          <div
-            key={n.id}
-            onClick={() => setSelectedNode(n)}
-            className={`absolute flex flex-col items-center bg-white border-2 rounded-xl shadow-lg px-3 py-2 min-w-[120px] text-sm font-semibold transition-all cursor-pointer group ${
-              isHighlighted 
-                ? 'border-yellow-400 ring-4 ring-yellow-300/50 scale-110 shadow-xl' 
-                : 'border-gray-200 hover:scale-110 hover:shadow-xl hover:border-blue-400'
-            } ${isFiltered ? 'opacity-30' : 'opacity-100'}`}
-            style={{
-              left: n.x,
-              top: n.y,
-              animation: `fadeInUp 0.6s ease forwards`,
-              animationDelay: `${index * 0.05}s`,
-            }}
-            title={`${n.label} • ${connectionCount} connections • Click for details`}
-          >
-            <div className="text-xl mb-1">{getIcon(n.label)}</div>
-            {n.label}
-            {/* PHASE 5: Hover tooltip */}
-            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-              {connectionCount} connections
-            </div>
-          </div>
-        );
-      })}
-
-      {/* 🎯 EMPTY STATE: Shows when no architecture generated */}
-      {nodes.length === 0 && !loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-          <div className="text-5xl mb-3 animate-floatBrain">🧠</div>
-          <p className="font-medium">Your AI-generated architecture will appear here</p>
-          <p className="text-sm mt-2">Describe any system. Let BuildWise think for you 🤖</p>
-        </div>
-      )}
-
-      {/* 🎯 LOADING STATE: AI Thinking Animation with Progress Bar */}
-      {loading && (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/95 via-indigo-50/95 to-purple-50/95 backdrop-blur-sm flex flex-col items-center justify-center">
-          {/* 🎯 AI Brain Icon with pulse animation */}
-          <div className="text-6xl mb-4 animate-bounce">🧠</div>
-          
-          {/* 🎯 Progress indicator */}
-          <div className="w-64 bg-gray-200 rounded-full h-2 mb-6 overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-500"
-              style={{ width: `${(aiThinking.length / 5) * 100}%` }}
-            />
-          </div>
-
-          {/* 🎯 AI Thinking steps */}
-          <div className="space-y-2">
-            {aiThinking.map((line, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 text-gray-700 text-sm font-medium"
-                style={{ 
-                  animation: 'fadeInLeft 0.4s ease-out',
-                  animationDelay: `${idx * 0.1}s`,
-                  opacity: 0,
-                  animationFillMode: 'forwards'
-                }}
-              >
-                <div className="flex gap-1">
-                  <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></span>
-                  <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
-                  <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></span>
-                </div>
-                {line}
+    <div className="bg-white border rounded-lg p-6 min-h-[600px]">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <div className="space-y-2 text-center">
+            {aiThinking.map((thought, idx) => (
+              <div key={idx} className="text-sm text-gray-600">
+                {thought}
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {/* 🎯 CSS ANIMATIONS */}
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes fadeInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes drawPath {
-          from {
-            stroke-dashoffset: 1000;
-          }
-          to {
-            stroke-dashoffset: 0;
-          }
-        }
-        
-        @keyframes floatBrain {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-15px);
-          }
-        }
-        
-        .animate-floatBrain {
-          animation: floatBrain 3s ease-in-out infinite;
-        }
-        }
-      `}</style>
-
-            </TransformComponent>
-          </>
-        )}
-      </TransformWrapper>
-
-      {/* 🎯 NODE DETAILS MODAL: Shows when a node is clicked */}
-      {selectedNode && (
-        <NodeModal
-          node={selectedNode}
-          edges={edges}
-          onClose={() => setSelectedNode(null)}
-        />
+      ) : nodes.length > 0 ? (
+        <>
+          <div className="flex justify-between mb-4">
+            <h3 className="text-lg font-semibold">Architecture Diagram</h3>
+            <div className="space-x-2">
+              <button
+                onClick={onRegenerate}
+                className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                Regenerate
+              </button>
+              <button
+                onClick={onExport}
+                className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 rounded"
+              >
+                Export
+              </button>
+              <button
+                onClick={onClear}
+                className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 rounded"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          
+          <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 bg-gray-50 min-h-[500px]">
+            {/* Simple node visualization */}
+            {nodes.map((node) => (
+              <div
+                key={node.id}
+                className="absolute bg-white border-2 border-blue-400 rounded-lg p-4 shadow-md"
+                style={{
+                  left: `${node.position.x}px`,
+                  top: `${node.position.y}px`,
+                }}
+              >
+                <div className="text-xs text-gray-500 uppercase">{node.type}</div>
+                <div className="font-medium">{node.data.label}</div>
+              </div>
+            ))}
+            
+            {/* Edge connections - simplified */}
+            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              {edges.map((edge) => {
+                const source = nodes.find(n => n.id === edge.source);
+                const target = nodes.find(n => n.id === edge.target);
+                if (!source || !target) return null;
+                
+                return (
+                  <line
+                    key={edge.id}
+                    x1={source.position.x + 50}
+                    y1={source.position.y + 25}
+                    x2={target.position.x + 50}
+                    y2={target.position.y + 25}
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    markerEnd="url(#arrowhead)"
+                  />
+                );
+              })}
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="3"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
+                </marker>
+              </defs>
+            </svg>
+          </div>
+        </>
+      ) : (
+        <div className="flex items-center justify-center h-full text-gray-400">
+          <div className="text-center">
+            <p className="text-lg mb-2">No architecture generated yet</p>
+            <p className="text-sm">Enter a prompt and click Generate to start</p>
+          </div>
+        </div>
       )}
     </div>
   );

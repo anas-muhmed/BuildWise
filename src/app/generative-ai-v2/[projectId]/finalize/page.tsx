@@ -79,7 +79,7 @@ interface CostEstimate {
 export default function FinalizePage() {
   const params = useParams();
   const router = useRouter();
-  const projectId = params.id as string;
+  const projectId = params.projectId as string;
 
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<{ version: number; nodes: ModuleNode[]; edges: ModuleEdge[]; modules: string[]; createdAt: string } | null>(null);

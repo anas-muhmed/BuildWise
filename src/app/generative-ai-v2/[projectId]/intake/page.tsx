@@ -62,7 +62,7 @@ const questions: Question[] = [
 export default function IntakePage() {
   const router = useRouter();
   const params = useParams();
-  const projectId = params.id as string;
+  const projectId = params.projectId as string;
 
   const [currentStep, setCurrentStep] = useState(0);
   /* eslint-disable @typescript-eslint/no-explicit-any */

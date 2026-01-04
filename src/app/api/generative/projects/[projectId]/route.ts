@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/route.ts
+// app/api/generative/projects/[projectId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject } from "@/lib/backend/models/DraftProject";
@@ -7,7 +7,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 // Get single project
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -18,7 +18,7 @@ export async function GET(
     await connectDB();
 
     const project = await DraftProject.findOne({
-      _id: params.id,
+      _id: params.projectId,
       owner_id: user.id
     }).lean();
 

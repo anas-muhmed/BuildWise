@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/requirements/route.ts
+// app/api/generative/projects/[projectId]/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject, AuditLog } from "@/lib/backend/models/DraftProject";
@@ -8,7 +8,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -29,7 +29,7 @@ export async function PATCH(
     await connectDB();
 
     const project = await DraftProject.findOne({
-      _id: params.id,
+      _id: params.projectId,
       owner_id: user.id
     });
 
@@ -45,7 +45,7 @@ export async function PATCH(
 
     // Audit log
     await AuditLog.create({
-      project_id: params.id,
+      project_id: params.projectId,
       action: "requirements_saved",
       by: user.id,
       metadata: { requirements },

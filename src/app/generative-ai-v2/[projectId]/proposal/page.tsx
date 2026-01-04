@@ -19,7 +19,7 @@ type StackChoice = {
 export default function ProposalPage() {
   const router = useRouter();
   const params = useParams();
-  const projectId = params.id as string;
+  const projectId = params.projectId as string;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);

@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/snapshots/route.ts
+// app/api/generative/projects/[projectId]/snapshots/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { getLatestSnapshot, getSnapshotHistory, getSnapshotDiff } from "@/lib/backend/services/snapshotService";
@@ -11,7 +11,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const projectId = resolvedParams.id;
+    const projectId = resolvedParams.projectId;
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get('mode'); // 'latest', 'history', 'diff'
     const fromVersion = searchParams.get('from_version');

@@ -27,16 +27,18 @@ export function getAuthUser(
   const token = authHeader.split(" ")[1];
 
   // Step 4: Verify token with JWT secret
-  const payload = verifyToken(token) as JWTPayload | null;
+  const payload = verifyToken(token) as any;
 
   // Step 5: Check if token is valid
-  if (!payload || !payload.id) {
+  // Support both 'id' and 'userId' for backward compatibility
+  const userId = payload?.id || payload?.userId;
+  if (!payload || !userId) {
     return NextResponse.json(
       { error: "Unauthorized-Invalid token" },
       { status: 401 }
     );
   }
 
-  // Step 6: Return validated user payload
-  return payload;
+  // Step 6: Return validated user payload with normalized 'id' field
+  return { ...payload, id: userId } as JWTPayload;
 }

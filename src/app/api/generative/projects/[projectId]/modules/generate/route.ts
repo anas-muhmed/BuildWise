@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/modules/generate/route.ts
+// app/api/generative/projects/[projectId]/modules/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject, Proposal } from "@/lib/backend/models/DraftProject";
@@ -14,7 +14,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -26,7 +26,7 @@ export async function POST(
 
     const resolvedParams = await params;
     const project = await DraftProject.findOne({
-      _id: resolvedParams.id,
+      _id: resolvedParams.projectId,
       owner_id: user.id
     });
 
@@ -38,7 +38,7 @@ export async function POST(
     }
 
     // Check if modules already exist
-    const existingModules = await Module.find({ project_id: resolvedParams.id });
+    const existingModules = await Module.find({ project_id: resolvedParams.projectId });
     if (existingModules.length > 0) {
       return NextResponse.json({
         ok: true,
@@ -55,7 +55,7 @@ export async function POST(
     // Generate modules from proposal components
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modules = await generateModulesFromProposal(
-      resolvedParams.id,
+      resolvedParams.projectId,
       proposal as any,
       project.requirements!,
       user.id
@@ -68,7 +68,7 @@ export async function POST(
 
     // Audit log
     await AuditLog.create({
-      project_id: resolvedParams.id,
+      project_id: resolvedParams.projectId,
       action: "modules_generated",
       by: user.id,
       metadata: { module_count: modules.length },
@@ -112,12 +112,12 @@ async function generateModulesFromProposal(
   if (hasAuth) {
     modules.push(
       await Module.create({
-        project_id: projectId,
+        projectId: projectId,
         name: "Authentication & User Management",
         description: "User signup, login, session management, and profile handling",
         order: order++,
         status: "proposed",
-        created_by: userId,
+        meta: { createdBy: userId },
         nodes: [
           {
             id: "mobile_app",
@@ -294,12 +294,12 @@ async function generateModulesFromProposal(
 
     modules.push(
       await Module.create({
-        project_id: projectId,
+        projectId: projectId,
         name: feature,
         description: `Implementation of ${feature} functionality`,
         order: order++,
         status: "proposed",
-        created_by: userId,
+        meta: { createdBy: userId },
         nodes,
         edges,
         rationale: `This module handles the core ${feature} functionality as specified in requirements.`,
@@ -316,12 +316,12 @@ async function generateModulesFromProposal(
   if (requirements.traffic === "large" || (requirements.team_size && requirements.team_size >= 5)) {
     modules.push(
       await Module.create({
-        project_id: projectId,
+        projectId: projectId,
         name: "Infrastructure & Monitoring",
         description: "Logging, monitoring, CDN, and DevOps infrastructure",
         order: order++,
         status: "proposed",
-        created_by: userId,
+        meta: { createdBy: userId },
         nodes: [
           { id: "cdn", type: "cdn", label: "CDN", meta: { provider: "Cloudflare" } },
           {

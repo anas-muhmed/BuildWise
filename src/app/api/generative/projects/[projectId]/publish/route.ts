@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/publish/route.ts
+// app/api/generative/projects/[projectId]/publish/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject, AuditLog } from "@/lib/backend/models/DraftProject";
@@ -13,7 +13,7 @@ import { generateIaC } from "@/lib/backend/services/iacGenerator";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -22,7 +22,7 @@ export async function POST(
     }
 
     const resolvedParams = await params;
-    const projectId = resolvedParams.id;
+    const projectId = resolvedParams.projectId;
     const body = await req.json();
     const { snapshotVersion, target = "staging", deployOptions } = body;
 

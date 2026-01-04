@@ -10,8 +10,8 @@ import * as api from "@/lib/frontend/api";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
 export default function BuilderPageClient() {
-  const params = useParams() as { id: string };
-  const projectId = params?.id;
+  const params = useParams() as { projectId: string };
+  const projectId = params?.projectId;
   const router = useRouter();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

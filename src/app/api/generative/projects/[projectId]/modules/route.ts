@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/modules/route.ts
+// app/api/generative/projects/[projectId]/modules/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { Module } from "@/lib/backend/models/Module";
@@ -16,7 +16,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 // Create module draft from LLM result or manual body
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const resolvedParams = await params;
-    const projectId = resolvedParams.id;
+    const projectId = resolvedParams.projectId;
     const userId = user.id;
     const body = await req.json();
 
@@ -44,14 +44,14 @@ export async function POST(
       
       const llm = body.llm_output;
       const moduleDoc = await Module.create({
-        project_id: projectId,
+        projectId: projectId,
         name: llm.module_name,
         description: body.description || '',
         nodes: llm.nodes,
         edges: llm.edges,
         rationale: llm.rationale,
         status: 'proposed',
-        created_by: userId,
+        meta: { createdBy: userId },
         order: body.order || 0,
         ai_feedback: {
           confidence: llm.confidence,
@@ -80,14 +80,14 @@ export async function POST(
       }
       
       const moduleDoc = await Module.create({
-        project_id: projectId,
+        projectId: projectId,
         name,
         description: body.description || '',
         nodes,
         edges,
         rationale,
         status: 'proposed',
-        created_by: userId,
+        meta: { createdBy: userId },
         order: order || 0
       });
       
@@ -114,7 +114,7 @@ export async function POST(
 // List all modules for a project
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -123,11 +123,11 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const projectId = resolvedParams.id;
+    const projectId = resolvedParams.projectId;
 
     await connectDB();
 
-    const modules = await Module.find({ project_id: projectId })
+    const modules = await Module.find({ projectId: projectId })
       .sort({ order: 1, created_at: 1 })
       .lean();
     

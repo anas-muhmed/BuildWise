@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/finalize/route.ts
+// app/api/generative/projects/[projectId]/finalize/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject } from "@/lib/backend/models/DraftProject";
@@ -15,7 +15,7 @@ import { estimateCosts } from "@/lib/backend/services/costEstimator";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -24,7 +24,7 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const projectId = resolvedParams.id;
+    const projectId = resolvedParams.projectId;
 
     await connectDB();
 
@@ -53,7 +53,7 @@ export async function GET(
     }
 
     // Get all modules for metadata
-    const modules = await Module.find({ project_id: projectId }).lean();
+    const modules = await Module.find({ projectId: projectId }).lean();
     const approvedCount = modules.filter(m => m.status === 'approved').length;
 
     // Generate readiness report (use project requirements if available)

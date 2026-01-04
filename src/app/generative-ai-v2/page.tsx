@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/lib/authContext";
 import { Sparkles, Brain, MessageSquare, Box, GraduationCap, ArrowRight, Zap } from "lucide-react";
 
 // 🎯 MASTER PLAN: Phase 0 - Landing / Trigger
@@ -17,6 +19,7 @@ interface RecentProject {
 
 export default function GenerativeAIV2Page() {
   const router = useRouter();
+  const { getToken } = useAuth();
   const [starter, setStarter] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
@@ -34,7 +37,7 @@ export default function GenerativeAIV2Page() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getToken();
         if (!token) return;
 
         const res = await fetch("/api/generative/projects", {
@@ -58,7 +61,7 @@ export default function GenerativeAIV2Page() {
     };
 
     fetchProjects();
-  }, []);
+  }, [getToken]);
 
   const handleStart = async () => {
     if (!starter.trim()) {
@@ -69,12 +72,19 @@ export default function GenerativeAIV2Page() {
     setIsCreating(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getToken();
+      
+      if (!token) {
+        alert("Authentication required. Please log in again.");
+        router.push("/login");
+        return;
+      }
+
       const res = await fetch("/api/generative/projects", {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json", 
-          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ 
           starter_prompt: starter.trim()
@@ -82,7 +92,13 @@ export default function GenerativeAIV2Page() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create project");
+        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+        if (res.status === 401) {
+          alert("Session expired. Please log in again.");
+          router.push("/login");
+          return;
+        }
+        throw new Error(errorData.error || "Failed to create project");
       }
 
       const data = await res.json();
@@ -91,7 +107,7 @@ export default function GenerativeAIV2Page() {
       router.push(`/generative-ai-v2/${data.projectId}/intake`);
     } catch (error) {
       console.error(error);
-      alert("Failed to create project. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to create project. Please try again.");
       setIsCreating(false);
     }
   };
@@ -103,8 +119,9 @@ export default function GenerativeAIV2Page() {
   };
 
   return (
-    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder">
-      <div className="space-y-6">
+    <ProtectedRoute>
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder">
+        <div className="space-y-6">
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 p-8">
           <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
@@ -253,5 +270,6 @@ export default function GenerativeAIV2Page() {
         </div>
       </div>
     </DashboardLayoutWrapper>
+    </ProtectedRoute>
   );
 }

@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/proposal/route.ts
+// app/api/generative/projects/[projectId]/proposal/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject, Proposal, AuditLog } from "@/lib/backend/models/DraftProject";
@@ -10,7 +10,7 @@ import { IRequirements, IStackChoice } from "@/lib/backend/models/DraftProject";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -21,7 +21,7 @@ export async function POST(
     await connectDB();
 
     const project = await DraftProject.findOne({
-      _id: params.id,
+      _id: params.projectId,
       owner_id: user.id
     });
 
@@ -41,7 +41,7 @@ export async function POST(
 
     // Create proposal
     const proposal = await Proposal.create({
-      project_id: params.id,
+      project_id: params.projectId,
       components,
       created_at: new Date(),
       ai_generated: true
@@ -55,7 +55,7 @@ export async function POST(
 
     // Audit log
     await AuditLog.create({
-      project_id: params.id,
+      project_id: params.projectId,
       action: "proposal_generated",
       by: "AI",
       metadata: { proposal_id: proposal._id.toString() },
@@ -78,7 +78,7 @@ export async function POST(
 // Get existing proposal
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -90,7 +90,7 @@ export async function GET(
 
     const resolvedParams = await params;
     const project = await DraftProject.findOne({
-      _id: resolvedParams.id,
+      _id: resolvedParams.projectId,
       owner_id: user.id
     });
 

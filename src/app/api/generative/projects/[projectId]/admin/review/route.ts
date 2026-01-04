@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/admin/review/route.ts
+// app/api/generative/projects/[projectId]/admin/review/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { ReviewQueue } from "@/lib/backend/models/ReviewQueue";
@@ -15,7 +15,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 // List pending review items
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -26,7 +26,7 @@ export async function GET(
     // TODO: Add admin role check here
     // if (user.role !== 'admin') return 403;
 
-    const projectId = params.id;
+    const projectId = params.projectId;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'pending';
 
@@ -54,7 +54,7 @@ export async function GET(
 // Resolve a review item
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -65,7 +65,7 @@ export async function PATCH(
     // TODO: Add admin role check
     // if (user.role !== 'admin') return 403;
 
-    const projectId = params.id;
+    const projectId = params.projectId;
     const body = await req.json();
     const { review_item_id, resolution, admin_notes } = body;
 

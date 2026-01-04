@@ -1,4 +1,4 @@
-// app/api/generative/projects/[id]/snapshots/rollback/route.ts
+// app/api/generative/projects/[projectId]/snapshots/rollback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { rollbackToVersion } from "@/lib/backend/services/snapshotService";
@@ -11,7 +11,7 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { projectId: string } }
 ) {
   try {
     const user = await getAuthUser(req);
@@ -19,7 +19,7 @@ export async function POST(
       return user || NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const projectId = params.id;
+    const projectId = params.projectId;
     const userId = user.id;
     const body = await req.json();
 
