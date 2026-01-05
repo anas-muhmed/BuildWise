@@ -328,7 +328,10 @@ export default function DashboardApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Student Mode Card */}
               <div 
-                onClick={() => window.location.href = "/student"}
+                onClick={() => {
+                  const projectId = Date.now().toString();
+                  window.location.href = `/student-mode/${projectId}/setup`;
+                }}
                 className="rounded-xl bg-zinc-900 border border-zinc-800 p-6 hover:border-zinc-700 transition-colors cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-4">

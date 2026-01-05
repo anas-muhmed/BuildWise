@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { projectToCanvas } from "@/lib/student-mode/canvas-layout";
 import { explainNode } from "@/lib/student-mode/explain";
 import { explainEdge } from "@/lib/student-mode/explain-edge";
+import { estimateCost } from "@/lib/student-mode/cost-estimator";
 import NodeExplain from "@/components/student-mode/NodeExplain";
 import BackendDecision from "@/components/student-mode/BackendDecision";
 import DecisionPanel from "@/components/student-mode/DecisionPanel";
 import VersionPanel from "@/components/student-mode/VersionPanel";
+import CostPanel from "@/components/student-mode/CostPanel";
+import StepFooter from "@/components/student-mode/StepFooter";
 
 const SIDEBAR_WIDTH = 340;
 
 export default function CanvasPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const router = useRouter();
   const [graph, setGraph] = useState<any>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<any>(null);
@@ -58,8 +62,11 @@ export default function CanvasPage() {
 
   if (!graph) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        Loading canvas…
+      <div className="min-h-screen bg-gradient-to-br from-black via-purple-950/10 to-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+          <div className="text-lg text-zinc-400">Materializing architecture...</div>
+        </div>
       </div>
     );
   }
@@ -68,12 +75,16 @@ export default function CanvasPage() {
   const nodeExplanation = activeNode ? explainNode(activeNode) : null;
   const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
 
+  const teamSize = 3; // TODO: replace with real team state later
+  const constraintsEnabled = !!constraintError; // Constraints active if error present
+  const costEstimate = estimateCost(graph, teamSize, constraintsEnabled);
+
   return (
     <div className="min-h-screen bg-black text-white flex">
 
       {/* CANVAS */}
       <div
-        className="relative overflow-hidden h-screen"
+        className="relative overflow-hidden h-screen bg-gradient-to-br from-black via-zinc-950 to-black"
         style={{ width: `calc(100vw - ${SIDEBAR_WIDTH}px)` }}
         onClick={() => {
           setActiveNodeId(null);
@@ -81,43 +92,66 @@ export default function CanvasPage() {
           setConstraintError(null);
         }}
       >
+        {/* Grid Pattern Background */}
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
+          backgroundSize: '50px 50px'
+        }}></div>
+        
+        {/* Gradient Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
         {/* Score Badge */}
         {score && (
-          <div className="absolute top-4 left-4 z-20">
+          <div className="absolute top-6 left-6 z-20">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setShowScoreBreakdown(!showScoreBreakdown);
               }}
-              className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 hover:border-zinc-500 transition"
+              className="group relative backdrop-blur-xl bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 border border-zinc-700/50 rounded-2xl px-6 py-4 hover:border-purple-500/50 transition-all duration-300 shadow-2xl hover:shadow-purple-500/25 hover:scale-105"
             >
-              <div className="text-xs text-zinc-400 uppercase font-semibold">Architecture Score</div>
-              <div className="text-2xl font-bold text-indigo-400">
-                {score.total} <span className="text-sm text-zinc-500">/ {score.maxTotal}</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative">
+                <div className="text-xs text-zinc-400 uppercase font-semibold tracking-wider mb-1">Architecture Quality</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    {score.total}
+                  </span>
+                  <span className="text-sm text-zinc-500">/ {score.maxTotal}</span>
+                </div>
               </div>
             </button>
 
             {/* Score Breakdown Modal */}
             {showScoreBreakdown && (
-              <div className="absolute top-full left-0 mt-2 bg-zinc-900 border border-zinc-700 rounded-lg p-4 w-80">
-                <div className="space-y-3">
+              <div className="absolute top-full left-0 mt-3 backdrop-blur-xl bg-gradient-to-br from-zinc-900/95 to-zinc-800/95 border border-zinc-700/50 rounded-2xl p-6 w-96 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="space-y-4">
                   {Object.entries(score.breakdown).map(([key, data]: [string, any]) => {
                     const percentage = (data.score / data.max) * 100;
                     const status = percentage >= 80 ? "✔" : percentage >= 50 ? "⚠" : "✖";
                     const color = percentage >= 80 ? "text-green-400" : percentage >= 50 ? "text-yellow-400" : "text-red-400";
+                    const bgColor = percentage >= 80 ? "from-green-500/20 to-green-600/20" : percentage >= 50 ? "from-yellow-500/20 to-yellow-600/20" : "from-red-500/20 to-red-600/20";
+                    const barColor = percentage >= 80 ? "from-green-500 to-green-600" : percentage >= 50 ? "from-yellow-500 to-yellow-600" : "from-red-500 to-red-600";
 
                     return (
-                      <div key={key} className="border-b border-zinc-800 pb-3 last:border-0">
-                        <div className="flex items-center justify-between mb-1">
+                      <div key={key} className={`bg-gradient-to-br ${bgColor} border border-zinc-700/30 rounded-xl p-4`}>
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className={color}>{status}</span>
-                            <span className="font-semibold capitalize">{key}</span>
+                            <span className={`${color} text-lg`}>{status}</span>
+                            <span className="font-semibold capitalize text-white">{key}</span>
                           </div>
-                          <span className="text-sm text-zinc-400">
+                          <span className="text-sm text-zinc-400 font-mono">
                             {data.score} / {data.max}
                           </span>
                         </div>
-                        <div className="text-xs text-zinc-500">{data.reason}</div>
+                        <div className="w-full h-2 bg-zinc-800/50 rounded-full overflow-hidden mb-2">
+                          <div 
+                            className={`h-full bg-gradient-to-r ${barColor} transition-all duration-500`}
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-zinc-400">{data.reason}</div>
                       </div>
                     );
                   })}
@@ -186,6 +220,17 @@ export default function CanvasPage() {
         {graph.nodes.map((node: any) => {
           const isActive = node.id === activeNodeId;
           const isViolated = constraintError?.affectedNodeType === node.type;
+          
+          // Node type color mapping
+          const nodeColors = {
+            frontend: { border: "border-blue-500/50", bg: "from-blue-500/10 to-blue-600/5", glow: "shadow-blue-500/25" },
+            backend: { border: "border-purple-500/50", bg: "from-purple-500/10 to-purple-600/5", glow: "shadow-purple-500/25" },
+            database: { border: "border-green-500/50", bg: "from-green-500/10 to-green-600/5", glow: "shadow-green-500/25" },
+            cache: { border: "border-orange-500/50", bg: "from-orange-500/10 to-orange-600/5", glow: "shadow-orange-500/25" },
+            queue: { border: "border-yellow-500/50", bg: "from-yellow-500/10 to-yellow-600/5", glow: "shadow-yellow-500/25" },
+          };
+          
+          const colors = nodeColors[node.type as keyof typeof nodeColors] || nodeColors.backend;
 
           return (
             <div
@@ -198,21 +243,35 @@ export default function CanvasPage() {
               }}
               style={{ left: node.x, top: node.y }}
               className={`
-                absolute z-10 w-56 p-4 rounded cursor-pointer transition
+                group absolute z-10 w-64 backdrop-blur-xl rounded-2xl cursor-pointer transition-all duration-300
                 ${isViolated
-                  ? "bg-red-900/30 border-2 border-red-500"
+                  ? "bg-gradient-to-br from-red-900/40 to-red-800/40 border-2 border-red-500 shadow-lg shadow-red-500/50"
                   : isActive 
-                    ? "bg-zinc-800 border border-indigo-500"
-                    : "bg-zinc-900 border border-zinc-700 hover:border-zinc-500"}
+                    ? `bg-gradient-to-br ${colors.bg} border-2 ${colors.border} shadow-xl ${colors.glow} scale-105`
+                    : `bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 border border-zinc-700/50 hover:${colors.border} hover:shadow-lg hover:${colors.glow} hover:scale-105`}
               `}
             >
-              <div className="text-xs text-zinc-400 uppercase">{node.type}</div>
-              <div className="font-semibold">{node.label}</div>
-              {isViolated && (
-                <div className="text-xs text-red-400 mt-2 flex items-center gap-1">
-                  <span>⚠</span>
-                  <span>Constraint violated</span>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider backdrop-blur-sm ${
+                    isActive ? `bg-gradient-to-r ${colors.bg} ${colors.border} border` : "bg-zinc-800/50 text-zinc-400"
+                  }`}>
+                    {node.type}
+                  </div>
+                  {isActive && (
+                    <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                  )}
                 </div>
+                <div className="font-semibold text-lg text-white mb-1">{node.label}</div>
+                {isViolated && (
+                  <div className="flex items-center gap-2 text-red-400 text-sm mt-3 p-2 bg-red-500/10 rounded-lg border border-red-500/30">
+                    <span className="text-lg">⚠</span>
+                    <span>Constraint violated</span>
+                  </div>
+                )}
+              </div>
+              {isActive && (
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl -z-10"></div>
               )}
             </div>
           );
@@ -221,7 +280,7 @@ export default function CanvasPage() {
 
       {/* SIDEBAR */}
       <div
-        className="border-l border-zinc-800 bg-zinc-950 p-4"
+        className="border-l border-zinc-800/50 bg-gradient-to-b from-zinc-950/95 to-black/95 backdrop-blur-xl p-6 overflow-y-auto"
         style={{ width: SIDEBAR_WIDTH }}
       >
         {constraintError ? (
@@ -344,6 +403,11 @@ export default function CanvasPage() {
                 </div>
               </div>
             )}
+
+            {/* Cost Estimation */}
+            <div className="pt-4 border-t border-zinc-800">
+              <CostPanel estimate={costEstimate} />
+            </div>
           </div>
         ) : nodeExplanation ? (
           <NodeExplain
@@ -357,6 +421,8 @@ export default function CanvasPage() {
           />
         ) : null}
       </div>
+
+      <StepFooter projectId={projectId} currentStep="canvas" canContinue={true} />
     </div>
   );
 }
