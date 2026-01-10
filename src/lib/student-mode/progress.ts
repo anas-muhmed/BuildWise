@@ -5,6 +5,7 @@ export type StudentStep =
   | "canvas"
   | "team"
   | "cost"
+  | "execution"
   | "summary";
 
 export const stepOrder: StudentStep[] = [
@@ -14,5 +15,6 @@ export const stepOrder: StudentStep[] = [
   "canvas",
   "team",
   "cost",
+  "execution",
   "summary",
 ];

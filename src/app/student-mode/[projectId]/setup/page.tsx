@@ -12,7 +12,7 @@ export default function StudentModeSetup() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 blur-3xl"></div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent relative">
-            Student Mode v2
+            Student Mode
           </h1>
         </div>
         <p className="text-xl text-zinc-400">
@@ -59,6 +59,13 @@ export default function StudentModeSetup() {
             </li>
             <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
               <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">6</span>
+              <div>
+                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Execution Blueprint</div>
+                <div className="text-xs text-zinc-500">Step-by-step development plan</div>
+              </div>
+            </li>
+            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
+              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">7</span>
               <div>
                 <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Complete Summary</div>
                 <div className="text-xs text-zinc-500">Full breakdown ready for viva defense</div>

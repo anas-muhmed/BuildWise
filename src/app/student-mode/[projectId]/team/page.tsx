@@ -62,25 +62,28 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen bg-black text-white p-8 pb-24">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-8 space-y-2">
+        <div className="mb-8 space-y-3">
           <div className="relative inline-block">
             <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 blur-2xl"></div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent relative">
               Team Distribution
             </h1>
           </div>
-          <p className="text-zinc-400">Component ownership and workload analysis</p>
+          <p className="text-zinc-400">Component ownership based on team skills</p>
+          <p className="text-sm text-zinc-500 bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
+            Each system component is assigned to a team member based on required technical skills to avoid responsibility gaps during development.
+          </p>
         </div>
 
         {/* Coverage Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-xl p-6 hover:border-green-500/50 transition-all">
             <div className="text-3xl font-bold text-green-400 mb-1">{result.coverage.assigned}</div>
-            <div className="text-sm text-zinc-400">Assigned Components</div>
+            <div className="text-sm text-zinc-400">Components with clear owners</div>
           </div>
           <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-xl p-6 hover:border-red-500/50 transition-all">
             <div className="text-3xl font-bold text-red-400 mb-1">{result.coverage.unassigned}</div>
-            <div className="text-sm text-zinc-400">Unassigned Components</div>
+            <div className="text-sm text-zinc-400">Components needing assignment</div>
           </div>
           <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-xl p-6 hover:border-purple-500/50 transition-all">
             <div className="text-3xl font-bold text-zinc-300 mb-1">{result.coverage.total}</div>

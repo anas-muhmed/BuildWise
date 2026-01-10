@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import StepFooter from "@/components/student-mode/StepFooter";
 
 export default function SummaryPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const router = useRouter();
   const [project, setProject] = useState<any>(null);
   const [reasoning, setReasoning] = useState<any>(null);
   const [architecture, setArchitecture] = useState<any>(null);
@@ -176,6 +177,20 @@ export default function SummaryPage() {
               <span className="text-sm text-zinc-300">Discuss identified risks and your mitigation strategies</span>
             </div>
           </div>
+        </div>
+
+        {/* Ready to Build */}
+        <div className="mt-8 bg-gradient-to-br from-orange-900/20 to-amber-900/20 border border-orange-700/50 rounded-xl p-6">
+          <h2 className="text-xl font-semibold mb-3 text-orange-400">Ready to Start Building?</h2>
+          <p className="text-zinc-300 mb-4">
+            Your architecture is designed and defensible. Now see the step-by-step execution plan.
+          </p>
+          <button
+            onClick={() => router.push(`/student-mode/${projectId}/execution`)}
+            className="w-full p-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 rounded-xl font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-[1.02]"
+          >
+            Proceed to Execution Plan →
+          </button>
         </div>
       </div>
 
