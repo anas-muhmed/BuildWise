@@ -32,7 +32,7 @@ export default function NavHeader() {
               Design Canvas
             </button>
             <button
-              onClick={() => router.push("/generative-ai")}
+              onClick={() => router.push("/generative-ai-legacy")}
               className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded"
             >
               Generative AI

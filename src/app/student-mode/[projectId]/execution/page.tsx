@@ -93,6 +93,23 @@ export default function ExecutionBlueprintPage() {
           <li>Architecture matches the designed canvas</li>
         </ul>
       </Section>
+
+      {/* Terminal Message */}
+      <div className="max-w-5xl mx-auto px-8 mt-12 mb-8">
+        <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-700/30 rounded-xl p-8 text-center">
+          <div className="text-2xl font-bold text-indigo-400 mb-3">✓ System Design Complete</div>
+          <p className="text-zinc-300 text-lg">
+            You now have a complete system design and execution plan.
+            This is sufficient for implementation or academic defense.
+          </p>
+          <button
+            onClick={() => router.push(`/student-mode/${projectId}/summary`)}
+            className="mt-6 px-6 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+          >
+            ← Back to Summary
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

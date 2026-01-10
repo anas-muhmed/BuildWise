@@ -185,7 +185,7 @@ export default function IntakePage() {
       if (!res.ok) throw new Error("Failed to save requirements");
 
       // Move to Phase 2 (Stack Proposal)
-      router.push(`/generative-ai-v2/${projectId}/proposal`);
+      router.push(`/generative-ai/${projectId}/proposal`);
     } catch (error) {
       console.error(error);
       alert("Failed to save. Please try again.");

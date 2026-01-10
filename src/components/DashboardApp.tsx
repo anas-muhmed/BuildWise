@@ -140,7 +140,7 @@ export default function DashboardApp() {
 
       if (response.ok) {
         const data = await response.json();
-        window.location.href = `/generative-ai-v2/${data.projectId}/intake`;
+        window.location.href = `/generative-ai/${data.projectId}/intake`;
       } else {
         alert("Failed to create project. Please try again.");
       }
@@ -177,7 +177,7 @@ export default function DashboardApp() {
 
       if (response.ok) {
         const data = await response.json();
-        window.location.href = `/generative-ai-v2/${data.projectId}/intake`;
+        window.location.href = `/generative-ai/${data.projectId}/intake`;
       } else {
         alert("Failed to create project. Please try again.");
       }
@@ -214,7 +214,7 @@ export default function DashboardApp() {
           <NavItem 
             icon={<History />} 
             label="Recent Work" 
-            onClick={() => window.location.href = "/generative-ai-v2"}
+            onClick={() => window.location.href = "/generative-ai"}
           />
           <NavItem 
             icon={<Trophy />} 
@@ -446,9 +446,9 @@ export default function DashboardApp() {
                     };
 
                     const getPhaseRoute = (project: RecentProject) => {
-                      if (project.current_phase === 1) return `/generative-ai-v2/${project._id}/intake`;
-                      if (project.current_phase === 2) return `/generative-ai-v2/${project._id}/proposal`;
-                      return `/generative-ai-v2/${project._id}/builder`;
+                      if (project.current_phase === 1) return `/generative-ai/${project._id}/intake`;
+                      if (project.current_phase === 2) return `/generative-ai/${project._id}/proposal`;
+                      return `/generative-ai/${project._id}/builder`;
                     };
 
                     return (

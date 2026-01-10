@@ -60,15 +60,15 @@ export default function StudentModeSetup() {
             <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
               <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">6</span>
               <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Execution Blueprint</div>
-                <div className="text-xs text-zinc-500">Step-by-step development plan</div>
+                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Complete Summary</div>
+                <div className="text-xs text-zinc-500">Full breakdown ready for viva defense</div>
               </div>
             </li>
             <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
               <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">7</span>
               <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Complete Summary</div>
-                <div className="text-xs text-zinc-500">Full breakdown ready for viva defense</div>
+                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Execution Blueprint</div>
+                <div className="text-xs text-zinc-500">Step-by-step development plan (Final)</div>
               </div>
             </li>
           </ol>

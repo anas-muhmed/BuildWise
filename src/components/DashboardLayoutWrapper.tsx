@@ -92,7 +92,7 @@ export default function DashboardLayoutWrapper({
             icon={<History />} 
             label="Recent Work" 
             active={activeNav === "recent"}
-            onClick={() => window.location.href = "/generative-ai-v2"}
+            onClick={() => window.location.href = "/generative-ai"}
             collapsed={collapsed}
           />
           <NavItem 

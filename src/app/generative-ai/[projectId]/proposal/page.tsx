@@ -95,7 +95,7 @@ export default function ProposalPage() {
       console.log("Modules generated:", data);
 
       // Navigate to builder
-      router.push(`/generative-ai-v2/${projectId}/builder`);
+      router.push(`/generative-ai/${projectId}/builder`);
     } catch (error) {
       console.error("Failed to start building:", error);
       alert("Failed to generate architecture modules. Please try again.");
@@ -260,7 +260,7 @@ export default function ProposalPage() {
         {/* Action Buttons */}
         <div className="flex justify-center gap-4">
           <button
-            onClick={() => router.push(`/generative-ai-v2/${projectId}/intake`)}
+            onClick={() => router.push(`/generative-ai/${projectId}/intake`)}
             className="px-6 py-3 bg-zinc-800 text-zinc-300 rounded-xl font-medium hover:bg-zinc-700 transition-all cursor-pointer"
           >
             ← Revise Requirements
