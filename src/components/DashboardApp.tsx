@@ -292,34 +292,25 @@ export default function DashboardApp() {
                   design.
                 </p>
 
-                <form
-                  onSubmit={handleGenerativeDesign}
-                  className="flex gap-3 mb-4"
-                >
-                  <input
-                    type="text"
-                    placeholder="e.g., 'Build a real-time food delivery platform...'"
-                    value={generativeInput}
-                    onChange={(e) => setGenerativeInput(e.target.value)}
-                    className="flex-1 px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm focus:outline-none focus:border-zinc-700 backdrop-blur-sm"
-                  />
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-1 px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-lg text-sm text-zinc-500 flex items-center">
+                    e.g., 'Build a real-time food delivery platform...'
+                  </div>
                   <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={() => window.location.href = "/generative-ai"}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2 cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {loading ? "Creating..." : "Generate"}
+                    Generate
                   </button>
-                </form>
+                </div>
 
                 <button
-                  onClick={handleNewProject}
-                  disabled={loading}
-                  className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={() => window.location.href = "/generative-ai"}
+                  className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  Or start with manual design
+                  <Zap className="w-4 h-4" />
+                  Click to see examples and start building
                 </button>
               </div>
             </div>

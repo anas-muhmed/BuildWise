@@ -104,7 +104,7 @@ export default function GenerativeAIV2Page() {
       const data = await res.json();
       
       // Redirect to Phase 1 (Smart Intake)
-      router.push(`/generative-ai-v2/${data.projectId}/intake`);
+      router.push(`/generative-ai/${data.projectId}/intake`);
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "Failed to create project. Please try again.");
@@ -113,9 +113,9 @@ export default function GenerativeAIV2Page() {
   };
 
   const getPhaseRoute = (project: RecentProject) => {
-    if (project.current_phase === 1) return `/generative-ai-v2/${project._id}/intake`;
-    if (project.current_phase === 2) return `/generative-ai-v2/${project._id}/proposal`;
-    return `/generative-ai-v2/${project._id}/builder`;
+    if (project.current_phase === 1) return `/generative-ai/${project._id}/intake`;
+    if (project.current_phase === 2) return `/generative-ai/${project._id}/proposal`;
+    return `/generative-ai/${project._id}/builder`;
   };
 
   return (
