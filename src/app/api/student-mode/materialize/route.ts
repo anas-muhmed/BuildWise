@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildArchitecture } from "@/lib/student-mode/architecture-rules";
-import { reasoningStore, architectureStore } from "@/lib/student-mode/store";
+import { reasoningStore, architectureStore, projectDefinitionStore } from "@/lib/student-mode/store";
+import { getStudentModeArchitectureMock } from "@/lib/backend/ai/mocks/studentModeArchitecture.mock";
+import { buildStudentModeContext, renderContextAsText } from "@/lib/backend/ai/context/studentModeContextBuilder";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,10 +21,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const architecture = buildArchitecture(
-      projectId,
-      reasoning.answers
-    );
+    const definition = projectDefinitionStore.get(projectId);
+
+    if (!definition) {
+      console.log(`No definition found for ${projectId}, using defaults`);
+      // Use defaults for testing without full flow
+      const defaultDefinition = {
+        name: "Test Project",
+        goal: "Test application for architecture generation",
+        audience: "Students and learners",
+      };
+
+      const aiContext = buildStudentModeContext({
+        definition: defaultDefinition,
+        reasoning: reasoning.answers,
+      });
+
+      console.log("=== AI CONTEXT (Student Mode) ===");
+      console.log(renderContextAsText(aiContext));
+      console.log("=================================");
+
+      const mockResponse = getStudentModeArchitectureMock();
+      const architecture = mockResponse.architecture;
+
+      architectureStore.set(projectId, {
+        baseArchitecture: architecture,
+        activeDecisions: [],
+        architecture: architecture,
+      });
+
+      return NextResponse.json(mockResponse);
+    }
+
+    // Build AI context from student inputs (English, not raw data)
+    const aiContext = buildStudentModeContext({
+      definition: {
+        name: definition.name,
+        goal: definition.goal,
+        audience: definition.audience,
+      },
+      reasoning: reasoning.answers,
+    });
+
+    // Log context for validation (master's checkpoint)
+    console.log("=== AI CONTEXT (Student Mode) ===");
+    console.log(renderContextAsText(aiContext));
+    console.log("=================================");
+
+    // Use contract-valid mock (later: pass aiContext to real AI)
+    const mockResponse = getStudentModeArchitectureMock();
+    const architecture = mockResponse.architecture;
 
     // Store as BASE architecture with empty decisions
     architectureStore.set(projectId, {
@@ -31,7 +79,8 @@ export async function POST(req: NextRequest) {
       architecture: architecture, // initially same as base
     });
 
-    return NextResponse.json(architecture);
+    // Return full contract (architecture + reasoning)
+    return NextResponse.json(mockResponse);
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -50,13 +99,20 @@ export async function GET(req: NextRequest) {
 
   const state = architectureStore.get(projectId);
 
+  // If no state found, return mock data for testing
   if (!state) {
-    return NextResponse.json(
-      { error: "Architecture not found" },
-      { status: 404 }
-    );
+    console.log(`No state found for ${projectId}, returning mock data`);
+    const mockResponse = getStudentModeArchitectureMock();
+    return NextResponse.json({
+      architecture: mockResponse.architecture,
+      reasoning: mockResponse.reasoning
+    });
   }
 
-  // Return computed architecture
-  return NextResponse.json(state.architecture || state.baseArchitecture || state);
+  // Return full contract (architecture + reasoning)
+  const mockResponse = getStudentModeArchitectureMock();
+  return NextResponse.json({
+    architecture: state.architecture || state.baseArchitecture || state,
+    reasoning: mockResponse.reasoning
+  });
 }

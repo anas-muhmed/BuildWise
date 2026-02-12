@@ -70,16 +70,16 @@ const DroppedBlock = ({
         e.stopPropagation();
         onSelect?.(id);
       }}
-      className={`absolute group bg-white border-2 rounded-lg shadow-md text-sm font-semibold 
-                  flex items-center justify-between px-4 py-2
-                  ${selected ? "border-blue-500 ring-2 ring-blue-300" : "border-gray-300 text-gray-700"}`}
+      className={`absolute group bg-zinc-800 border-2 rounded-lg shadow-md text-sm font-semibold 
+                  flex items-center justify-between px-4 py-2 text-white
+                  ${selected ? "border-purple-500 ring-2 ring-purple-500/50" : "border-zinc-700"}`}
     >
       {/* Drag handle — disabled while a connection is pending */}
       <button
         type="button"
         {...(!hasPendingConnection ? { ...listeners, ...attributes } : {})}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`h-full px-3 ${hasPendingConnection ? "cursor-default" : "cursor-grab"} rounded-l-md hover:bg-gray-50 select-none`}
+        className={`h-full px-3 ${hasPendingConnection ? "cursor-default" : "cursor-grab"} rounded-l-md hover:bg-zinc-700 select-none`}
         title={hasPendingConnection ? "Connecting…" : "Drag to move"}
       >
         {(config?.name || type).toUpperCase()}
@@ -92,7 +92,7 @@ const DroppedBlock = ({
           type="button"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onOpenConfig?.(id); }}
-          className="p-1 rounded-md hover:bg-slate-50 text-slate-600"
+          className="p-1 rounded-md hover:bg-zinc-700 text-zinc-400 hover:text-white"
           title="Configure"
         >
           <Settings className="w-4 h-4" />

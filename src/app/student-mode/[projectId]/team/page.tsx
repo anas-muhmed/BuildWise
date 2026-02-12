@@ -17,7 +17,10 @@ export default function TeamPage() {
       try {
         // Fetch current architecture
         const archRes = await fetch(`/api/student-mode/materialize?projectId=${projectId}`);
-        const architecture = await archRes.json();
+        const response = await archRes.json();
+        
+        // Extract architecture from full contract
+        const architecture = response.architecture || response;
 
         if (!architecture.nodes) {
           setLoading(false);

@@ -221,11 +221,11 @@ export default function FinalizePage() {
 
   if (loading) {
     return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Final Review">
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-            <p className="mt-4 text-zinc-400">Loading final review...</p>
+            <p className="mt-4 text-zinc-400">Loading execution handoff...</p>
           </div>
         </div>
       </DashboardLayoutWrapper>
@@ -234,10 +234,10 @@ export default function FinalizePage() {
 
   if (!snapshot) {
     return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Final Review">
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <p className="text-zinc-400">No snapshot found. Approve some modules first.</p>
+            <p className="text-zinc-400">No snapshot found. Accept some modules first.</p>
             <Button onClick={() => router.back()} className="mt-4">
               Go Back
             </Button>
@@ -255,7 +255,7 @@ export default function FinalizePage() {
   };
 
   return (
-    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Final Review">
+    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
       <div className="space-y-4">
         {/* Header */}
         <div className="panel-elev px-6 py-4">
@@ -271,12 +271,12 @@ export default function FinalizePage() {
                 Back
               </Button>
               <div className="h-6 w-px bg-zinc-700" />
-              <h1 className="text-xl font-bold text-white">Final Architecture Review</h1>
+              <h1 className="text-xl font-bold text-white">Execution Handoff</h1>
             </div>
             <div className="flex items-center gap-3">
               <div className="px-3 py-1 rounded-full bg-green-600/20 border border-green-500/30 text-xs text-green-300">
                 <CheckCircle className="w-3 h-3 inline mr-1" />
-                Ready for Review
+                Ready for Implementation
               </div>
               <div className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-300">
                 v{snapshot.version}
@@ -293,8 +293,9 @@ export default function FinalizePage() {
               className="cursor-pointer text-zinc-700 hover:text-zinc-950 border-zinc-700 hover:border-zinc-600"
             >
               <FileJson className="w-4 h-4 mr-2" />
-              Export JSON
+              Export Implementation Blueprint
             </Button>
+            {/* Enterprise controls - hidden for student demo
             <Button
               onClick={handlePublish}
               className="bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
@@ -312,6 +313,7 @@ export default function FinalizePage() {
               <RotateCcw className="w-4 h-4 mr-2" />
               Rollback
             </Button>
+            */}
           </div>
         </div>
 

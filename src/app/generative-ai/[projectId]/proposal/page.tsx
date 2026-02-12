@@ -1,4 +1,4 @@
-// app/generative-ai-v2/[id]/proposal/page.tsx
+// app/generative-ai/[id]/proposal/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -24,7 +24,6 @@ export default function ProposalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [proposal, setProposal] = useState<StackChoice[] | null>(null);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   useEffect(() => {
     loadProposal();
@@ -158,17 +157,16 @@ export default function ProposalPage() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🎯</div>
           <h1 className="text-4xl font-extrabold text-white mb-3">
-            Your Custom Tech Stack
+            Architecture Decision Ledger (v1)
           </h1>
           <p className="text-lg text-zinc-400">
-            AI analyzed your requirements and crafted this stack. Review each choice below.
+            Locked architectural decisions based on your intake constraints.
           </p>
         </div>
 
         {/* Stack Choices Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {proposal.map((choice, idx) => {
-            const isExpanded = expandedCard === choice.component;
             return (
               <div 
                 key={idx}
@@ -184,72 +182,37 @@ export default function ProposalPage() {
                       {choice.choice}
                     </div>
                   </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${getConfidenceColor(choice.confidence)}`}>
-                      {getConfidenceIcon(choice.confidence)} {choice.confidence.toUpperCase()}
-                    </div>
+                  <div className="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400">
+                    LOCKED
                   </div>
-
-                {/* Rationale */}
-                <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <div className="text-sm font-semibold text-white mb-2">Why this?</div>
-                  <p className="text-sm text-zinc-300">{choice.rationale}</p>
                 </div>
 
-                {/* Alternatives & Resources (collapsible) */}
-                {!isExpanded && (
-                  <button
-                    onClick={() => setExpandedCard(choice.component)}
-                    className="text-sm text-blue-400 hover:text-blue-300 font-medium cursor-pointer"
-                  >
-                    → Show alternatives & resources
-                  </button>
-                )}
+                {/* Decision Basis */}
+                <div className="mb-4">
+                  <div className="text-sm text-zinc-400 mb-2">
+                    Decision basis derived from intake constraints.
+                  </div>
+                  <ul className="text-sm text-zinc-300 list-disc pl-5 space-y-1">
+                    {choice.rationale.split(".").filter(r => r.trim()).map((r, i) => (
+                      <li key={i}>{r.trim()}.</li>
+                    ))}
+                  </ul>
+                </div>
 
-                {isExpanded && (
-                  <div className="space-y-4 animate-fadeIn">
-                    {/* Alternatives */}
-                    {choice.alternatives && choice.alternatives.length > 0 && (
-                      <div>
-                        <div className="text-sm font-semibold text-white mb-2">Alternatives</div>
-                        <div className="flex flex-wrap gap-2">
-                          {choice.alternatives.map((alt, i) => (
-                            <span 
-                              key={i}
-                              className="px-3 py-1 bg-zinc-800 text-zinc-300 rounded-full text-xs font-medium"
-                            >
-                                {alt}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                    {/* Learning Resources */}
-                    {choice.learning_resources && choice.learning_resources.length > 0 && (
-                      <div>
-                        <div className="text-sm font-semibold text-white mb-2">Learning Resources</div>
-                        <div className="space-y-2">
-                          {choice.learning_resources.map((resource, i) => (
-                            <a
-                              key={i}
-                              href={resource.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 hover:underline"
-                            >
-                              📚 {resource.title}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => setExpandedCard(null)}
-                      className="text-sm text-zinc-500 hover:text-zinc-400 cursor-pointer"
-                    >
-                      ↑ Collapse
-                    </button>
+                {/* Trade-offs (optional alternatives shown minimally) */}
+                {choice.alternatives && choice.alternatives.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold text-zinc-400 mb-2">Trade-offs</div>
+                    <div className="flex flex-wrap gap-2">
+                      {choice.alternatives.slice(0, 3).map((alt, i) => (
+                        <span 
+                          key={i}
+                          className="px-3 py-1 bg-zinc-800/50 text-zinc-400 rounded-full text-xs"
+                        >
+                          vs {alt}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -269,7 +232,7 @@ export default function ProposalPage() {
             onClick={handleStartBuilding}
             className="px-12 py-4 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white text-lg font-semibold rounded-xl hover:opacity-90 shadow-xl shadow-purple-500/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
-            Start Building Architecture →
+            Generate Architecture →
           </button>
         </div>
       </div>

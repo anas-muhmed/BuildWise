@@ -1,4 +1,4 @@
-// app/generative-ai-v2/[id]/intake/page.tsx
+// app/generative-ai/[id]/intake/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -9,53 +9,53 @@ import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
 type Question = {
   id: string;
-  text: string;
+  label: string;
   type: "multi-select" | "radio" | "dropdown" | "slider" | "tags";
   options?: string[];
-  explanation?: string;
+  helper?: string;
 };
 
 const questions: Question[] = [
   {
     id: "users",
-    text: "Who will use your app?",
+    label: "Primary users",
     type: "multi-select",
     options: ["Students", "Business owners", "General public", "Enterprises", "Developers", "Drivers/Delivery workers"],
-    explanation: "Understanding your users helps us design appropriate authentication, UI complexity, and data models."
+    helper: "Affects authentication, access control, and UI complexity"
   },
   {
     id: "traffic",
-    text: "Expected traffic level?",
+    label: "Expected traffic level",
     type: "radio",
     options: ["Small (< 1K users)", "Medium (1K-50K users)", "Large (50K+ users)"],
-    explanation: "This determines database choices, caching strategies, and infrastructure complexity."
+    helper: "Determines database, caching, and infrastructure choices"
   },
   {
     id: "budget",
-    text: "Budget tier?",
+    label: "Budget tier",
     type: "radio",
     options: ["Low (minimize costs)", "Medium (balanced)", "High (performance first)"],
-    explanation: "Affects cloud provider choices, managed services vs self-hosted, and redundancy levels."
+    helper: "Affects cloud provider and service selection"
   },
   {
     id: "team_size",
-    text: "Team size?",
+    label: "Team size",
     type: "slider",
-    explanation: "Smaller teams need simpler stacks. Larger teams can handle microservices."
+    helper: "Determines architecture complexity and tooling"
   },
   {
     id: "features",
-    text: "Must-have features?",
+    label: "Must-have features",
     type: "tags",
     options: ["Real-time tracking", "Payments", "Notifications", "Chat/Messaging", "File uploads", "Search", "Authentication", "Admin dashboard", "Analytics"],
-    explanation: "We'll build your architecture around these core features."
+    helper: "Core features that drive architecture decisions"
   },
   {
     id: "priorities",
-    text: "What matters most?",
+    label: "Top priorities",
     type: "multi-select",
     options: ["Speed/Performance", "Low cost", "High reliability", "Real-time updates", "Easy maintenance", "Scalability"],
-    explanation: "These priorities guide our technology recommendations and trade-off decisions."
+    helper: "Guides technology selection and trade-offs"
   }
 ];
 
@@ -77,7 +77,6 @@ export default function IntakePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [project, setProject] = useState<any>(null);
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  const [aiFollowUp, setAiFollowUp] = useState<string | null>(null);
 
   // Load project details
   useEffect(() => {
@@ -124,37 +123,7 @@ export default function IntakePage() {
     if (isLastQuestion) {
       await handleSubmit();
     } else {
-      // Check if AI needs follow-up question
-      const needsFollowUp = await checkAIFollowUp();
-      if (needsFollowUp) {
-        // AI asked clarifying question - show it
-        return;
-      }
       setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const checkAIFollowUp = async () => {
-    // Call AI to check if current answer needs clarification
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/generative/ai/validate-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ 
-          question: currentQuestion.id, 
-          answer: answers[currentQuestion.id],
-          context: answers
-        })
-      });
-      const data = await res.json();
-      if (data.followup) {
-        setAiFollowUp(data.followup);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
     }
   };
 
@@ -227,34 +196,15 @@ export default function IntakePage() {
           {/* Question Card */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 mb-6">
             <div className="mb-6">
-              <h2 className="text-3xl font-bold text-white mb-3">
-                {currentQuestion.text}
+              <h2 className="text-2xl font-bold text-white">
+                {currentQuestion.label}
               </h2>
-              {currentQuestion.explanation && (
-                <p className="text-zinc-300 bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-sm">
-                  💡 {currentQuestion.explanation}
+              {currentQuestion.helper && (
+                <p className="text-sm text-zinc-500 mt-1">
+                  {currentQuestion.helper}
                 </p>
               )}
             </div>
-
-            {/* AI Follow-up Question */}
-            {aiFollowUp && (
-              <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">🤖</div>
-                  <div>
-                    <p className="font-semibold text-white mb-2">AI needs clarification:</p>
-                    <p className="text-zinc-300">{aiFollowUp}</p>
-                    <button
-                      onClick={() => setAiFollowUp(null)}
-                      className="mt-3 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-lg text-sm font-medium transition-colors cursor-pointer text-zinc-200"
-                    >
-                      Got it, let me revise
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Multi-Select Chips */}
             {currentQuestion.type === "multi-select" && (
@@ -361,7 +311,7 @@ export default function IntakePage() {
               disabled={!canProceed() || isSubmitting}
               className="px-8 py-3 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-xl font-semibold hover:opacity-90 shadow-xl shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all hover:scale-105 active:scale-95"
             >
-              {isSubmitting ? "Saving..." : isLastQuestion ? "Generate Proposal →" : "Next →"}
+              {isSubmitting ? "Saving..." : isLastQuestion ? "Generate Architecture →" : "Next →"}
             </button>
           </div>
       </div>

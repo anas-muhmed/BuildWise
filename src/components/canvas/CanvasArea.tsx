@@ -128,12 +128,12 @@ const CanvasArea = ({
         }
       }}
       data-canvas="true"
-      className={`relative flex-1 h-[calc(100vh-180px)] bg-white rounded-2xl
-        border ${isOver ? "border-blue-400 bg-blue-50" : "border-dashed border-slate-300"} shadow-sm`}
+      className={`relative flex-1 h-[calc(100vh-180px)] bg-zinc-950 rounded-2xl
+        border ${isOver ? "border-purple-500 bg-purple-950/20" : "border-dashed border-zinc-700"} shadow-sm`}
       style={{
         backgroundImage: isOver
           ? "none"
-          : "linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)",
+          : "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
         backgroundSize: "20px 20px",
       }}
       onMouseDown={(e) => {
@@ -285,9 +285,9 @@ const CanvasArea = ({
 
       {droppedComponents.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center text-gray-400">
+          <div className="text-center text-zinc-500">
             <div className="text-4xl mb-4">🧱</div>
-            <p className="text-lg font-medium">Start Building Your Architecture</p>
+            <p className="text-lg font-medium text-zinc-400">Start Building Your Architecture</p>
             <p className="text-sm mt-2">Drag components from the sidebar to begin</p>
           </div>
         </div>

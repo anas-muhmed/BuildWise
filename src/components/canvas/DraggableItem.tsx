@@ -25,17 +25,17 @@ const DraggableItem = ({ label, id, color }: DraggableItemProps) => {
   const getColorClasses = (color: string) => {
     switch (color) {
       case "blue":
-        return "bg-blue-50 border-blue-200 hover:bg-blue-100";
+        return "bg-blue-500/20 border-blue-500/50 hover:bg-blue-500/30 text-blue-300";
       case "green":
-        return "bg-green-50 border-green-200 hover:bg-green-100";
+        return "bg-green-500/20 border-green-500/50 hover:bg-green-500/30 text-green-300";
       case "purple":
-        return "bg-purple-50 border-purple-200 hover:bg-purple-100";
+        return "bg-purple-500/20 border-purple-500/50 hover:bg-purple-500/30 text-purple-300";
       case "yellow":
-        return "bg-yellow-50 border-yellow-200 hover:bg-yellow-100";
+        return "bg-yellow-500/20 border-yellow-500/50 hover:bg-yellow-500/30 text-yellow-300";
       case "indigo":
-        return "bg-indigo-50 border-indigo-200 hover:bg-indigo-100";
+        return "bg-indigo-500/20 border-indigo-500/50 hover:bg-indigo-500/30 text-indigo-300";
       default:
-        return "bg-gray-50 border-gray-200 hover:bg-gray-100";
+        return "bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-300";
     }
   };
 

@@ -22,7 +22,10 @@ export default function SummaryPage() {
 
         const projData = await projRes.json();
         const reasonData = await reasonRes.json();
-        const archData = await archRes.json();
+        const archResponse = await archRes.json();
+        
+        // Extract architecture from full contract
+        const archData = archResponse.architecture || archResponse;
 
         setProject(projData);
         setReasoning(reasonData);

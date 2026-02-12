@@ -1,228 +1,323 @@
 "use client";
-import React, { useEffect, useState } from "react";
 
-type Design = {
-  _id: string;
-  title: string;
-  status?: string;
-  createdAt?: string;
-  userId?: { _id: string; name?: string; email?: string } | string;
-};
-type User = { _id: string; name: string; email: string; createdAt?: string };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AdminLog = { _id: string; adminId: { name?: string; email?: string } | string; action: string; designId?: { title?: string } | string; createdAt?: string; meta?: any };
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { 
+  Users, 
+  Folder, 
+  Activity, 
+  Settings,
+  AlertCircle,
+  CheckCircle,
+  Clock
+} from "lucide-react";
 
-function getToken() {
-  return (typeof window !== "undefined" && localStorage.getItem("admin_token")) || "";
+interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalProjects: number;
+  aiRequests: {
+    total: number;
+    student: number;
+    generative: number;
+    manual: number;
+  };
+  systemStatus: {
+    useRealAI: boolean;
+    model: string;
+    rateLimitActive: boolean;
+  };
 }
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState<"projects" | "users" | "logs">("projects");
-  const [designs, setDesigns] = useState<Design[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [logs, setLogs] = useState<AdminLog[]>([]);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(12);
-  const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  // helper fetch wrapper
-  async function api(path: string, opts: RequestInit = {}) {
-    const token = getToken();
-    const headers = { ...(opts.headers || {}), Authorization: token ? `Bearer ${token}` : "" };
-    const res = await fetch(path, { ...opts, headers });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      throw new Error(json?.error || res.statusText || "Request failed");
-    }
-    return res.json();
-  }
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page]);
+    fetchStats();
+  }, []);
 
-  async function loadData() {
-    setLoading(true);
+  const fetchStats = async () => {
     try {
-      if (tab === "projects") {
-        const url = `/api/admin/designs?page=${page}&limit=${limit}&q=${encodeURIComponent(q)}`;
-        const data = await api(url);
-        setDesigns(data?.designs || []);
-      } else if (tab === "users") {
-        const data = await api("/api/admin/users");
-        setUsers(data?.users || []);
-      } else {
-        const data = await api("/api/admin/logs");
-        setLogs(data?.logs || []);
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
       }
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to load");
+
+      const response = await fetch("/api/admin/dashboard", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 403) {
+        setError("Admin access required");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard stats");
+      }
+
+      const data = await response.json();
+      setStats(data);
+      setError(null); // Clear any previous errors
+    } catch (err: any) {
+      setError(err.message || "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // actions
-  async function verifyDesign(id: string) {
-    if (!confirm("Verify this project?")) return;
-    try {
-      await api(`/api/admin/projects/${id}/verify`, { method: "POST" });
-      setMessage("Project verified");
-      loadData();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to verify");
-    }
-  }
-
-  async function flagDesign(id: string) {
-    const reason = prompt("Reason for flagging (short):") || "No reason provided";
-    try {
-      await api(`/api/admin/projects/${id}/flag`, { method: "POST", body: JSON.stringify({ reason }), headers: { "Content-Type": "application/json" } });
-      setMessage("Project flagged");
-      loadData();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to flag");
-    }
-  }
-
-  async function purgeDesign(id: string) {
-    if (!confirm("Permanently delete this design? This cannot be undone.")) return;
-    try {
-      await api(`/api/admin/designs/${id}/purge`, { method: "DELETE" });
-      setMessage("Project purged");
-      loadData();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to purge");
-    }
-  }
-
-  // small UI components
-  const Header = () => (
-    <div className="flex items-center justify-between mb-4">
-      <h1 className="text-xl font-semibold">Admin Dashboard</h1>
-      <div className="flex gap-2 items-center">
-        <div className="text-sm text-slate-600">Token: {getToken() ? "Present" : "Missing"}</div>
-        <button
-          onClick={() => { localStorage.removeItem("admin_token"); setMessage("Logged out (local token removed)"); }}
-          className="px-3 py-1 text-sm rounded bg-red-500 text-white"
-        >
-          Logout
-        </button>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-zinc-400">Loading dashboard...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const SearchBar = () => (
-    <div className="flex gap-2 mb-3">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or owner" className="flex-1 px-3 py-2 border rounded" />
-      <button onClick={() => { setPage(1); loadData(); }} className="px-3 py-2 bg-blue-600 text-white rounded">Search</button>
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-400">{error}</p>
+          <Link href="/" className="mt-4 inline-block text-purple-400 hover:text-purple-300">
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <Header />
-
-      <div className="mb-4 flex gap-2">
-        <button onClick={()=>{setTab("projects"); setPage(1);}} className={`px-3 py-1 rounded ${tab==="projects" ? "bg-blue-600 text-white" : "bg-gray-100"}`}>Projects</button>
-        <button onClick={()=>{setTab("users"); setPage(1);}} className={`px-3 py-1 rounded ${tab==="users" ? "bg-blue-600 text-white" : "bg-gray-100"}`}>Users</button>
-        <button onClick={()=>{setTab("logs"); setPage(1);}} className={`px-3 py-1 rounded ${tab==="logs" ? "bg-blue-600 text-white" : "bg-gray-100"}`}>Logs</button>
-      </div>
-
-      {message && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-yellow-800">{message}</div>
-            <button onClick={()=>setMessage(null)} className="text-sm px-2">✕</button>
-          </div>
-        </div>
-      )}
-
-      {tab === "projects" && (
-        <>
-          <SearchBar />
-          <div className="overflow-x-auto bg-white rounded shadow">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-2">Title</th>
-                  <th className="text-left p-2">Owner</th>
-                  <th className="text-left p-2">Status</th>
-                  <th className="text-left p-2">Created</th>
-                  <th className="text-left p-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} className="p-6 text-center">Loading...</td></tr>
-                ) : designs.length === 0 ? (
-                  <tr><td colSpan={5} className="p-6 text-center text-slate-500">No projects</td></tr>
-                ) : designs.map((d) => (
-                  <tr key={d._id} className="border-t">
-                    <td className="p-2">{d.title || "Untitled"}</td>
-                    <td className="p-2">{typeof d.userId === "object" && d.userId ? `${d.userId.name || ""} (${d.userId.email || ""})` : "—" }</td>
-                    <td className="p-2">{d.status || "draft"}</td>
-                    <td className="p-2">{d.createdAt ? new Date(d.createdAt).toLocaleString() : "-"}</td>
-                    <td className="p-2 flex gap-2">
-                      <button onClick={()=>verifyDesign(d._id)} className="px-2 py-1 bg-green-500 text-white rounded text-sm">Verify</button>
-                      <button onClick={()=>flagDesign(d._id)} className="px-2 py-1 bg-orange-500 text-white rounded text-sm">Flag</button>
-                      <button onClick={()=>purgeDesign(d._id)} className="px-2 py-1 bg-red-600 text-white rounded text-sm">Purge</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex justify-between items-center">
-            <div className="text-sm text-slate-600">Page {page}</div>
+    <div className="min-h-screen bg-zinc-950 text-white">
+      {/* Header */}
+      <header className="border-b border-zinc-800 bg-zinc-900/50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
             <div>
-              <button onClick={()=>{ if(page>1) setPage(p=>p-1); }} className="px-3 py-1 border rounded mr-2">Prev</button>
-              <button onClick={()=>{ setPage(p=>p+1); }} className="px-3 py-1 border rounded">Next</button>
+              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+              <p className="text-sm text-zinc-400 mt-1">System oversight and governance</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={fetchStats}
+                disabled={loading}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm transition-colors flex items-center gap-2"
+              >
+                <Activity className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <Link
+                href="/"
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition-colors"
+              >
+                Go Home
+              </Link>
             </div>
           </div>
-        </>
-      )}
-
-      {tab === "users" && (
-        <div className="overflow-auto bg-white rounded shadow p-2">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr><th className="p-2 text-left">Name</th><th className="p-2 text-left">Email</th><th className="p-2 text-left">Created</th></tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? <tr><td colSpan={3} className="p-6 text-center">No users</td></tr> : users.map(u=>(
-                <tr key={u._id} className="border-t">
-                  <td className="p-2">{u.name}</td>
-                  <td className="p-2">{u.email}</td>
-                  <td className="p-2">{u.createdAt ? new Date(u.createdAt).toLocaleString() : "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      )}
+      </header>
 
-      {tab === "logs" && (
-        <div className="overflow-auto bg-white rounded shadow p-2">
-          <table className="w-full">
-            <thead className="bg-gray-50"><tr><th className="p-2 text-left">When</th><th className="p-2 text-left">Admin</th><th className="p-2 text-left">Action</th><th className="p-2 text-left">Design</th></tr></thead>
-            <tbody>
-              {logs.length === 0 ? <tr><td colSpan={4} className="p-6 text-center">No logs</td></tr> : logs.map(l=>(
-                <tr key={l._id} className="border-t">
-                  <td className="p-2">{l.createdAt ? new Date(l.createdAt).toLocaleString() : "-"}</td>
-                  <td className="p-2">{typeof l.adminId === "object" && l.adminId ? `${l.adminId.name || ""} (${l.adminId.email||""})` : "admin"}</td>
-                  <td className="p-2">{l.action}</td>
-                  <td className="p-2">{typeof l.designId === "object" && l.designId ? l.designId.title || "-" : "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Navigation */}
+      <nav className="border-b border-zinc-800 bg-zinc-900/30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex gap-6">
+            <Link
+              href="/admin"
+              className="px-4 py-3 border-b-2 border-purple-500 text-purple-400 font-medium"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/users"
+              className="px-4 py-3 text-zinc-400 hover:text-white transition-colors"
+            >
+              Users
+            </Link>
+            <Link
+              href="/admin/projects"
+              className="px-4 py-3 text-zinc-400 hover:text-white transition-colors"
+            >
+              Projects
+            </Link>
+            <Link
+              href="/admin/ai-usage"
+              className="px-4 py-3 text-zinc-400 hover:text-white transition-colors"
+            >
+              AI Usage
+            </Link>
+            <Link
+              href="/admin/system"
+              className="px-4 py-3 text-zinc-400 hover:text-white transition-colors"
+            >
+              System
+            </Link>
+          </div>
         </div>
-      )}
+      </nav>
+
+      {/* Content */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Users */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Users className="w-8 h-8 text-blue-400" />
+              <span className="text-xs text-zinc-500">Users</span>
+            </div>
+            <div className="text-3xl font-bold mb-1">{stats.totalUsers}</div>
+            <div className="text-sm text-zinc-400">
+              {stats.activeUsers} active
+            </div>
+          </div>
+
+          {/* Total Projects */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Folder className="w-8 h-8 text-purple-400" />
+              <span className="text-xs text-zinc-500">Projects</span>
+            </div>
+            <div className="text-3xl font-bold mb-1">{stats.totalProjects}</div>
+            <div className="text-sm text-zinc-400">Total created</div>
+          </div>
+
+          {/* AI Requests */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Activity className="w-8 h-8 text-green-400" />
+              <span className="text-xs text-zinc-500">AI Requests</span>
+            </div>
+            <div className="text-3xl font-bold mb-1">{stats.aiRequests.total}</div>
+            <div className="text-sm text-zinc-400">All time</div>
+          </div>
+
+          {/* System Status */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Settings className="w-8 h-8 text-amber-400" />
+              <span className="text-xs text-zinc-500">Status</span>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              {stats.systemStatus.useRealAI ? (
+                <>
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <span className="text-sm font-medium">Real AI Active</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  <span className="text-sm font-medium">Mock Mode</span>
+                </>
+              )}
+            </div>
+            <div className="text-xs text-zinc-400">{stats.systemStatus.model}</div>
+          </div>
+        </div>
+
+        {/* AI Requests Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Requests by Mode */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Requests by Mode</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-zinc-400">Student Mode</span>
+                  <span className="text-sm font-medium">{stats.aiRequests.student}</span>
+                </div>
+                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500"
+                    style={{
+                      width: stats.aiRequests.total > 0 
+                        ? `${(stats.aiRequests.student / stats.aiRequests.total) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-zinc-400">Generative AI</span>
+                  <span className="text-sm font-medium">{stats.aiRequests.generative}</span>
+                </div>
+                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500"
+                    style={{
+                      width: stats.aiRequests.total > 0
+                        ? `${(stats.aiRequests.generative / stats.aiRequests.total) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-zinc-400">Manual Design</span>
+                  <span className="text-sm font-medium">{stats.aiRequests.manual}</span>
+                </div>
+                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500"
+                    style={{
+                      width: stats.aiRequests.total > 0
+                        ? `${(stats.aiRequests.manual / stats.aiRequests.total) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div className="space-y-3">
+              <Link
+                href="/admin/users"
+                className="block p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                <div className="font-medium mb-1">Manage Users</div>
+                <div className="text-sm text-zinc-400">View and manage user accounts</div>
+              </Link>
+              
+              <Link
+                href="/admin/ai-usage"
+                className="block p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                <div className="font-medium mb-1">AI Usage Logs</div>
+                <div className="text-sm text-zinc-400">Monitor AI requests and performance</div>
+              </Link>
+
+              <Link
+                href="/admin/system"
+                className="block p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                <div className="font-medium mb-1">System Configuration</div>
+                <div className="text-sm text-zinc-400">View and manage system settings</div>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

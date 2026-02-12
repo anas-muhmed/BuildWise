@@ -5,8 +5,8 @@ import DraggableItem from "./DraggableItem";
 
 const ComponentPallete = () => {
   return (
-    <div className="w-64 bg-white border-r border-gray-300 p-4">
-      <h3 className="text-lg font-bold mb-4 text-gray-800">Components</h3>
+    <div className="w-64 bg-zinc-900 border-r border-zinc-800 p-4">
+      <h3 className="text-lg font-bold mb-4 text-white">Components</h3>
 
       <div className="space-y-3">
         <DraggableItem id="frontend" label="🖥️ Frontend" color="blue" />
@@ -18,15 +18,15 @@ const ComponentPallete = () => {
 
       {/* Coming Soon */}
       <div className="mt-6">
-        <h4 className="text-xs text-gray-500 uppercase tracking-wide mb-2">Coming Soon</h4>
+        <h4 className="text-xs text-zinc-500 uppercase tracking-wide mb-2">Coming Soon</h4>
         <div className="space-y-2 text-sm">
-          <div className="bg-gray-100 text-gray-400 border border-gray-200 rounded-lg px-4 py-2 opacity-60">
+          <div className="bg-zinc-800 text-zinc-500 border border-zinc-700 rounded-lg px-4 py-2 opacity-60">
             🧠 Cache
           </div>
-          <div className="bg-gray-100 text-gray-400 border border-gray-200 rounded-lg px-4 py-2 opacity-60">
+          <div className="bg-zinc-800 text-zinc-500 border border-zinc-700 rounded-lg px-4 py-2 opacity-60">
             🔐 Auth
           </div>
-          <div className="bg-gray-100 text-gray-400 border border-gray-200 rounded-lg px-4 py-2 opacity-60">
+          <div className="bg-zinc-800 text-zinc-500 border border-zinc-700 rounded-lg px-4 py-2 opacity-60">
             🗄️ Storage
           </div>
         </div>

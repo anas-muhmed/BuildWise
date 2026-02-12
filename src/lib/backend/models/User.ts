@@ -6,8 +6,10 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: "student" | "admin";
+  role: "student" | "admin" | "teacher" | "guest";
+  isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 // Step 2: Define Mongoose schema (what a User looks like in database)
 const UserSchema = new Schema<IUser>(
@@ -28,8 +30,12 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["student", "admin"], // Only these 2 values allowed
+      enum: ["student", "admin", "teacher", "guest"], // Only these values allowed
       default: "student", // New users = student by default
+    },
+    isActive: {
+      type: Boolean,
+      default: true, // New users are active by default
     },
   },
   {

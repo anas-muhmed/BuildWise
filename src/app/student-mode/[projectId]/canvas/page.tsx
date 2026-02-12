@@ -34,9 +34,15 @@ export default function CanvasPage() {
   useEffect(() => {
     fetch(`/api/student-mode/materialize?projectId=${projectId}`)
       .then(res => res.json())
-      .then(data => {
+      .then(response => {
+        // Extract architecture from full contract
+        const data = response.architecture || response;
         if (!data?.nodes) return;
         setGraph(projectToCanvas(data));
+        // Reasoning available at: response.reasoning (for future use)
+      })
+      .catch(err => {
+        console.error("Failed to load architecture:", err);
       });
   }, [projectId]);
 
@@ -124,7 +130,7 @@ export default function CanvasPage() {
             </button>
 
             {/* Score Breakdown Modal */}
-            {showScoreBreakdown && (
+            {showScoreBreakdown && score?.breakdown && (
               <div className="absolute top-full left-0 mt-3 backdrop-blur-xl bg-gradient-to-br from-zinc-900/95 to-zinc-800/95 border border-zinc-700/50 rounded-2xl p-6 w-96 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="space-y-4">
                   {Object.entries(score.breakdown).map(([key, data]: [string, any]) => {

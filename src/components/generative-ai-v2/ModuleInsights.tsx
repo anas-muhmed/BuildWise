@@ -101,7 +101,7 @@ export default function ModuleInsights({ projectId, module, snapshot, mock = fal
 
   const handleReject = useCallback(async () => {
     if (!module) return;
-    const confirmReject = confirm(`Reject module "${module.name}"? This marks it rejected and will move to next module.`);
+    const confirmReject = confirm(`Override module "${module.name}"? This will mark it for manual revision.`);
     if (!confirmReject) return;
     setLoading(true);
     setError(null);
@@ -248,7 +248,7 @@ export default function ModuleInsights({ projectId, module, snapshot, mock = fal
       <div className="mt-4 sticky bottom-6 bg-transparent pt-3">
         <div className="flex items-center gap-2">
           <Button onClick={handleApprove} disabled={loading || module?.status === "approved"} className="bg-green-600 hover:bg-green-700">
-            <CheckCircle className="w-4 h-4 mr-2" /> {module?.status === "approved" ? "Approved" : "Approve"}
+            <CheckCircle className="w-4 h-4 mr-2" /> {module?.status === "approved" ? "Accepted" : "Accept Decision"}
           </Button>
 
           <Button variant="outline" onClick={handleModify} disabled={loading}>
@@ -260,7 +260,7 @@ export default function ModuleInsights({ projectId, module, snapshot, mock = fal
           </Button>
 
           <Button variant="outline" onClick={handleReject} disabled={loading} className="text-red-500">
-            <XCircle className="w-4 h-4 mr-2" /> Reject
+            <XCircle className="w-4 h-4 mr-2" /> Override
           </Button>
         </div>
       </div>

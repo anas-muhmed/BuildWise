@@ -1,61 +1,92 @@
-// app/api/admin/users/route.ts  //List All Users for admin
+/**
+ * Admin Users API
+ * 
+ * Purpose: User management for admin
+ * 
+ * GET: List all users
+ * PATCH: Update user (promote/demote, activate/deactivate)
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/backend/mongodb";
+import { requireAdmin } from "@/lib/backend/adminMiddleware";
+import { connectDB } from "@/lib/backend/db";
 import { User } from "@/lib/backend/models/User";
-import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function GET(req: NextRequest) {
-  try {
-    // Step 1: Authenticate user (using middleware!)
-    const authResult = getAuthUser(req);
-    
-    // Step 2: Check if it's an error response
-    if (authResult instanceof NextResponse) {
-      return authResult;  // Return 401 error
-    }
-    
-    // Step 3: Now we have the user data safely
-    const user = authResult;  // { id: "123", role: "student" or "admin" }
-    
-    // Step 4: Check if user is admin (ROLE-BASED ACCESS CONTROL)
-    if (user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access required" }, 
-        { status: 403 }
-      );
-    }
+  const authCheck = requireAdmin(req);
+  if (!authCheck.authorized) {
+    return NextResponse.json(
+      { error: authCheck.error },
+      { status: authCheck.status }
+    );
+  }
 
-    // Step 5: Connect to database
+  try {
     await connectDB();
 
-    // Step 6: Get all users (exclude passwords for security!)
-    // select("-password") = don't return password field
-    // sort({ createdAt: -1 }) = newest users first
     const users = await User.find()
-      .select("-password")
+      .select("-password") // Don't send passwords
       .sort({ createdAt: -1 })
       .lean();
 
-    // Step 7: Return user list
-    return NextResponse.json({ 
-      success: true,
-      users,
-      count: users.length
-    });
-
-  } catch (error) {
-    // ✅ PROPER ERROR HANDLING
+    return NextResponse.json({ users });
+  } catch (error: any) {
     console.error("Admin users error:", error);
-    
-    if (error instanceof Error) {
+    return NextResponse.json(
+      { error: "Failed to fetch users" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const authCheck = requireAdmin(req);
+  if (!authCheck.authorized) {
+    return NextResponse.json(
+      { error: authCheck.error },
+      { status: authCheck.status }
+    );
+  }
+
+  try {
+    await connectDB();
+
+    const { userId, updates } = await req.json();
+
+    if (!userId) {
       return NextResponse.json(
-        { error: error.message }, 
-        { status: 500 }
+        { error: "userId required" },
+        { status: 400 }
       );
     }
-    
+
+    // Only allow specific fields to be updated
+    const allowedUpdates: any = {};
+    if (updates.role && ["student", "admin", "teacher", "guest"].includes(updates.role)) {
+      allowedUpdates.role = updates.role;
+    }
+    if (typeof updates.isActive === "boolean") {
+      allowedUpdates.isActive = updates.isActive;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: allowedUpdates },
+      { new: true, select: "-password" }
+    );
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ user: updatedUser });
+  } catch (error: any) {
+    console.error("Admin user update error:", error);
     return NextResponse.json(
-      { error: "Server error while fetching users" }, 
+      { error: "Failed to update user" },
       { status: 500 }
     );
   }
