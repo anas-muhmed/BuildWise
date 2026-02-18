@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const architecture = state.architecture;
 
-  const components = architecture.nodes.map((node: any) => ({
+  const components = architecture.nodes.map((node: { label: string; type: string }) => ({
     name: node.label,
     type: node.type,
     responsibilities: responsibilityMap[node.type] ?? ["General responsibility"],

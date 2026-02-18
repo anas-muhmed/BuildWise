@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reasoningStore } from "@/lib/student-mode/store";
 
-type ReasoningState = {
-  projectId: string;
-  index: number;
-  answers: Record<string, string>;
-};
-
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
 

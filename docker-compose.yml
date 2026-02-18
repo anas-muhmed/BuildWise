@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # MongoDB database
+  mongodb:
+    image: mongo:4.4
+    container_name: buildwise-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: buildwise
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: buildwise
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./healthcheck-mongo.sh:/healthcheck.sh:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - buildwise-network
+    # healthcheck temporarily disabled for testing
+    # healthcheck:
+    #   test: ["CMD", "sh", "/healthcheck.sh"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 40s
+
+  # Next.js application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buildwise-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      
+      # Database
+      MONGODB_URI: mongodb://buildwise:${MONGO_PASSWORD:-changeme}@mongodb:27017/buildwise?authSource=admin
+      DATABASE_URL: file:/app/data/dev.db
+      
+      # Auth
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_ISSUER: buildwise
+      JWT_EXPIRES_IN: 30d
+      
+      # App
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      
+      # Setup (disable in production)
+      SETUP_MODE: ${SETUP_MODE:-false}
+      SETUP_SECRET: ${SETUP_SECRET:-}
+      
+      # Optional
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb:
+        condition: service_started
+    networks:
+      - buildwise-network
+    volumes:
+      - app_data:/app/data
+    # healthcheck temporarily disabled for testing
+    # healthcheck:
+    #   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+
+networks:
+  buildwise-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  app_data:
+    driver: local

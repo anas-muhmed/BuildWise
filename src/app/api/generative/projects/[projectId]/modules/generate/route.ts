@@ -53,10 +53,9 @@ export async function POST(
     }
 
     // Generate modules from proposal components
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modules = await generateModulesFromProposal(
       resolvedParams.projectId,
-      proposal as any,
+      proposal as unknown as Record<string, unknown>,
       project.requirements!,
       user.id
     );

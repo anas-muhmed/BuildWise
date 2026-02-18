@@ -17,14 +17,16 @@ const SIDEBAR_WIDTH = 340;
 
 export default function CanvasPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const router = useRouter();
-  const [graph, setGraph] = useState<any>(null);
+  const [graph, setGraph] = useState<{
+    nodes: Array<{ id: string; label: string; type: string }>;
+    edges: Array<{ source: string; target: string }>;
+  } | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<any>(null);
-  const [decisions, setDecisions] = useState<any>({});
-  const [score, setScore] = useState<any>(null);
+  const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string } | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, unknown>>({});
+  const [score, setScore] = useState<Record<string, unknown> | null>(null);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Array<Record<string, unknown>>>([]);
   const [constraintError, setConstraintError] = useState<{
     message: string;
     affectedNodeType?: string;

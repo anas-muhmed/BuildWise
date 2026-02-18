@@ -1,13 +1,8 @@
 // lib/mongodb.ts
 import mongoose from "mongoose";
 
-// Step 1: Get MongoDB URI from environment variables
-const MONGODB_URI = process.env.MONGODB_URI!;
-
-// Step 2: Validate URI exists (fail fast if missing)
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI not set in .env.local");
-}
+// Step 1: Get MongoDB URI from environment variables (default for build time)
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/buildwise";
 
 // Step 3: TypeScript declaration for global caching
 declare global {

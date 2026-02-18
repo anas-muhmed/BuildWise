@@ -28,3 +28,4 @@ StudentSubmissionSchema.index({ projectId: 1 });
 StudentSubmissionSchema.index({ userId: 1, status: 1 });
 
 export const StudentSubmission = mongoose.models.StudentSubmission || mongoose.model("StudentSubmission", StudentSubmissionSchema);
+export const StudentSubmissionModel = StudentSubmission;

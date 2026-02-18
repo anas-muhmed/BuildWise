@@ -4,20 +4,22 @@ import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/backend/mongodb";
 import { User } from "@/lib/backend/models/User";
 import { signToken } from "@/lib/backend/auth";
+import { validateLogin } from "@/lib/validation/schemas";
 
 export async function POST(req: Request) {
   try {
-    // Step 1: Parse credentials
+    // Step 1: Parse and validate credentials
     const body = await req.json();
-    const { email, password } = body;
-
-    // Step 2: Validate required fields
-    if (!email || !password) {
+    
+    const validation = validateLogin(body);
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: "Missing email or password" }, 
+        { error: validation.error }, 
         { status: 400 }
       );
     }
+
+    const { email, password } = validation.data!;
 
     // Step 3: Connect to database
     await connectDB();

@@ -1,11 +1,11 @@
 /**
  * Setup API - Promote User to Admin
  * 
- * TEMPORARY ENDPOINT FOR TESTING
- * Use this to make your first user an admin
+ * ⚠️ SECURITY: This endpoint is DISABLED in production
+ * Only works if SETUP_MODE=true in environment
  * 
  * Usage: POST /api/setup/promote-admin
- * Body: { "email": "your@email.com" }
+ * Body: { "email": "your@email.com", "secret": "SETUP_SECRET" }
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,12 +14,31 @@ import { User } from "@/lib/backend/models/User";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    // 🔒 SECURITY: Block in production unless explicitly enabled
+    const isSetupMode = process.env.SETUP_MODE === "true";
+    const setupSecret = process.env.SETUP_SECRET;
 
-    if (!email) {
+    if (!isSetupMode) {
       return NextResponse.json(
-        { error: "Email required" },
+        { error: "Setup mode disabled" },
+        { status: 403 }
+      );
+    }
+
+    const { email, secret } = await req.json();
+
+    if (!email || !secret) {
+      return NextResponse.json(
+        { error: "Email and secret required" },
         { status: 400 }
+      );
+    }
+
+    // 🔒 Verify setup secret
+    if (secret !== setupSecret) {
+      return NextResponse.json(
+        { error: "Invalid secret" },
+        { status: 401 }
       );
     }
 
@@ -48,7 +67,7 @@ export async function POST(req: NextRequest) {
         role: user.role,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Promote admin error:", error);
     return NextResponse.json(
       { error: "Failed to promote user" },

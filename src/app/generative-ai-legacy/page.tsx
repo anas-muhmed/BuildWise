@@ -19,7 +19,7 @@ export default function Page() {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-orange-300 mb-1">⚠️ Legacy Version - Deprecated</h3>
               <p className="text-zinc-300 mb-3">
-                This is the old version of Generative AI. We've built a much better version with improved features and workflow.
+                This is the old version of Generative AI. We&apos;ve built a much better version with improved features and workflow.
               </p>
               <a 
                 href="/generative-ai" 

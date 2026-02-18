@@ -14,7 +14,7 @@ export async function PATCH(req: Request, { params }: { params: { projectId: str
     if (!mod) return NextResponse.json({ ok: false, error: "module not found" }, { status: 404 });
 
     // Build canonical snapshot and persist (immutable new snapshot created)
-    const snapshot = await createSnapshotFromApproved(projectId, (req as any).headers?.get("x-user-id") || "system");
+    const snapshot = await createSnapshotFromApproved(projectId, (req as Request & { headers: Headers }).headers?.get("x-user-id") || "system");
 
     return NextResponse.json({ ok: true, module: mod, snapshot });
   } catch (err) {

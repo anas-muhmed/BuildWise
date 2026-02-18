@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildArchitecture } from "@/lib/student-mode/architecture-rules";
 import { reasoningStore, architectureStore, projectDefinitionStore } from "@/lib/student-mode/store";
 import { getStudentModeArchitectureMock } from "@/lib/backend/ai/mocks/studentModeArchitecture.mock";
 import { buildStudentModeContext, renderContextAsText } from "@/lib/backend/ai/context/studentModeContextBuilder";

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const designs = savedDesignsStore.get(projectId);
 
     // Return sorted by timestamp (newest first)
-    const sorted = designs.sort((a: any, b: any) => b.timestamp - a.timestamp);
+    const sorted = designs.sort((a: { timestamp: number }, b: { timestamp: number }) => b.timestamp - a.timestamp);
 
     return NextResponse.json(sorted);
   } catch (err) {

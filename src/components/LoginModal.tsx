@@ -69,7 +69,7 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
         localStorage.setItem("token", data.token);
       }
 
-      // Success - redirect to intended destination
+      // Success - navigate without full page refresh
       onClose();
       if (redirectTo) {
         router.push(redirectTo);
@@ -77,8 +77,9 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
         router.push("/");
       }
       
-      // Refresh to update auth state
-      router.refresh();
+      // REMOVED: router.refresh() - causes full page reload
+      // Instead, AuthContext will automatically update via localStorage
+      // and components will re-render based on the new auth state
     } catch (err: any) {
       setError(err?.message || "Unexpected error");
       console.error(`${mode} error:`, err);

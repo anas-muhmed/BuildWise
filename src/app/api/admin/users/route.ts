@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       .lean();
 
     return NextResponse.json({ users });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Admin users error:", error);
     return NextResponse.json(
       { error: "Failed to fetch users" },
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Only allow specific fields to be updated
-    const allowedUpdates: any = {};
+    const allowedUpdates: Record<string, unknown> = {};
     if (updates.role && ["student", "admin", "teacher", "guest"].includes(updates.role)) {
       allowedUpdates.role = updates.role;
     }
@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     return NextResponse.json({ user: updatedUser });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Admin user update error:", error);
     return NextResponse.json(
       { error: "Failed to update user" },

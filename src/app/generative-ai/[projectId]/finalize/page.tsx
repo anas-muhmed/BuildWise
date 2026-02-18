@@ -9,8 +9,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Rocket,
-  RotateCcw,
   FileJson,
   DollarSign,
   Activity
@@ -126,61 +124,6 @@ export default function FinalizePage() {
     a.href = url;
     a.download = `architecture-v${snapshot.version}.json`;
     a.click();
-  };
-
-  const handlePublish = async () => {
-    if (!snapshot) return;
-    if (!confirm("Publish this architecture? This will mark it as production-ready.")) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/generative/projects/${projectId}/publish`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ snapshotVersion: snapshot.version, target: "staging" })
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        alert(`Published successfully! Snapshot v${snapshot.version}`);
-      } else {
-        alert(data.error || "Publish failed");
-      }
-    } catch (err) {
-      console.error("Publish error:", err);
-      alert("Publish failed");
-    }
-  };
-
-  const handleRollback = async () => {
-    const version = prompt("Enter snapshot version to rollback to:");
-    if (!version) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/generative/projects/${projectId}/snapshots/rollback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ version: parseInt(version) })
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        alert(`Rolled back to v${version}`);
-        fetchFinalizeData();
-      } else {
-        alert(data.error || "Rollback failed");
-      }
-    } catch (err) {
-      console.error("Rollback error:", err);
-      alert("Rollback failed");
-    }
   };
 
   // Convert to React Flow format

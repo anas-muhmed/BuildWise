@@ -103,24 +103,6 @@ export default function ProposalPage() {
     }
   };
 
-  const getConfidenceColor = (confidence: string) => {
-    switch (confidence) {
-      case "high": return "text-green-600 bg-green-100";
-      case "medium": return "text-yellow-600 bg-yellow-100";
-      case "low": return "text-orange-600 bg-orange-100";
-      default: return "text-gray-600 bg-gray-100";
-    }
-  };
-
-  const getConfidenceIcon = (confidence: string) => {
-    switch (confidence) {
-      case "high": return "✓";
-      case "medium": return "⚡";
-      case "low": return "⚠";
-      default: return "?";
-    }
-  };
-
   if (isLoading || isGenerating) {
     return (
       <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Tech Stack Proposal">
