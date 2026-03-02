@@ -1,6 +1,8 @@
 // app/generative-ai/[id]/intake/page.tsx
 "use client";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/authContext";
+import LoginModal from "@/components/LoginModal";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
@@ -60,7 +62,15 @@ const questions: Question[] = [
 ];
 
 export default function IntakePage() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  }, [isAuthenticated, isLoading]);
   const params = useParams();
   const projectId = params.projectId as string;
 
@@ -161,6 +171,19 @@ export default function IntakePage() {
       setIsSubmitting(false);
     }
   };
+
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
+      </>
+    );
+  }
 
   if (!project) {
     return (

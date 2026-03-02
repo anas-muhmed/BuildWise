@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import StepFooter from "@/components/student-mode/StepFooter";
 
@@ -12,6 +12,37 @@ type DefinePayload = {
   realtime: boolean;
   dataSensitivity: "low" | "medium" | "high";
 };
+
+// Derive "what will be required" from the form — gives the student a preview
+// of how their choices translate to architectural requirements in the Build step.
+function computeImplications(form: DefinePayload): { icon: string; text: string }[] {
+  const items: { icon: string; text: string }[] = [];
+
+  // Always
+  items.push({ icon: "⚙️", text: "API Server — required by every system" });
+  items.push({ icon: "🗄️", text: "Primary Database — required to store your data" });
+
+  if (form.scale === "large") {
+    items.push({ icon: "⚖️", text: "Load Balancer — large scale needs traffic distribution" });
+    items.push({ icon: "⚡", text: "Cache (Redis) — reduces DB pressure under high load" });
+  } else if (form.scale === "medium") {
+    items.push({ icon: "⚡", text: "Cache (Redis) — recommended for medium-scale hot paths" });
+  }
+
+  if (form.realtime) {
+    items.push({ icon: "📨", text: "Message Queue — required for real-time event delivery" });
+    items.push({ icon: "🔄", text: "Background Worker — must consume the queue events" });
+  }
+
+  if (form.dataSensitivity === "high") {
+    items.push({ icon: "🔐", text: "Auth Service — required (payment / personal data)" });
+    items.push({ icon: "🛡️", text: "WAF — recommended for payment-grade security" });
+  } else if (form.dataSensitivity === "medium") {
+    items.push({ icon: "🔐", text: "Auth Service — required (user accounts present)" });
+  }
+
+  return items;
+}
 
 export default function DefineProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -26,6 +57,8 @@ export default function DefineProjectPage() {
     dataSensitivity: "low",
   });
   const [loading, setLoading] = useState(false);
+
+  const implications = useMemo(() => computeImplications(form), [form]);
 
   const update = <K extends keyof DefinePayload>(
     key: K,
@@ -108,11 +141,10 @@ export default function DefineProjectPage() {
             {(["students", "admins", "both"] as const).map((v) => (
               <label
                 key={v}
-                className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  form.targetUsers === v
-                    ? "border-purple-500 bg-purple-500/10"
-                    : "border-zinc-700/50 bg-zinc-900/50 hover:border-zinc-600"
-                }`}
+                className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${form.targetUsers === v
+                  ? "border-purple-500 bg-purple-500/10"
+                  : "border-zinc-700/50 bg-zinc-900/50 hover:border-zinc-600"
+                  }`}
               >
                 <input
                   type="radio"
@@ -120,9 +152,8 @@ export default function DefineProjectPage() {
                   onChange={() => update("targetUsers", v)}
                   className="sr-only"
                 />
-                <span className={`text-center block capitalize font-medium ${
-                  form.targetUsers === v ? "text-purple-400" : "text-zinc-400"
-                }`}>{v}</span>
+                <span className={`text-center block capitalize font-medium ${form.targetUsers === v ? "text-purple-400" : "text-zinc-400"
+                  }`}>{v}</span>
                 {form.targetUsers === v && (
                   <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></div>
                 )}
@@ -142,11 +173,10 @@ export default function DefineProjectPage() {
             ].map(([value, label]) => (
               <label
                 key={value}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                  form.scale === value
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"
-                }`}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${form.scale === value
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"
+                  }`}
               >
                 <input
                   type="radio"
@@ -165,11 +195,10 @@ export default function DefineProjectPage() {
         {/* Realtime */}
         <div className="space-y-2">
           <label
-            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-              form.realtime
-                ? "border-cyan-500 bg-cyan-500/10"
-                : "border-zinc-700/50 bg-zinc-900/50 hover:border-zinc-600"
-            }`}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.realtime
+              ? "border-cyan-500 bg-cyan-500/10"
+              : "border-zinc-700/50 bg-zinc-900/50 hover:border-zinc-600"
+              }`}
           >
             <input
               type="checkbox"
@@ -194,11 +223,10 @@ export default function DefineProjectPage() {
             ].map(([value, label]) => (
               <label
                 key={value}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                  form.dataSensitivity === value
-                    ? "border-orange-500 bg-orange-500/10"
-                    : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"
-                }`}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${form.dataSensitivity === value
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"
+                  }`}
               >
                 <input
                   type="radio"
@@ -214,6 +242,25 @@ export default function DefineProjectPage() {
           </div>
         </div>
 
+        {/* ── Architecture Implications Preview ─────────────────────────── */}
+        <div className="bg-violet-900/10 border border-violet-700/30 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-violet-400 text-sm font-bold">⚡ Architecture Implications</span>
+            <span className="text-xs text-zinc-500">— updates as you choose</span>
+          </div>
+          <p className="text-xs text-zinc-500 mb-3">
+            Based on your selections above, these components will be <span className="text-red-400 font-semibold">REQUIRED</span> when you design your architecture in the next steps:
+          </p>
+          <div className="space-y-1.5">
+            {implications.map((imp, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                <span className="shrink-0">{imp.icon}</span>
+                <span>{imp.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={submit}
           disabled={loading || !canContinue}
@@ -221,6 +268,7 @@ export default function DefineProjectPage() {
         >
           {loading ? "Saving..." : "Continue to Reasoning →"}
         </button>
+
       </div>
 
       <StepFooter projectId={projectId} currentStep="define" canContinue={false} />

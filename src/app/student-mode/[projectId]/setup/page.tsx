@@ -22,56 +22,27 @@ export default function StudentModeSetup() {
         <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-xl p-8 text-left space-y-6 shadow-2xl">
           <h2 className="text-xl font-semibold text-white">Your Journey:</h2>
           <ol className="space-y-4 text-sm">
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">1</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Define Project</div>
-                <div className="text-xs text-zinc-500">Name, goal, and target audience</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">2</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Answer Design Questions</div>
-                <div className="text-xs text-zinc-500">7 questions to guide architecture decisions</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">3</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Explore Architecture Canvas</div>
-                <div className="text-xs text-zinc-500">Visual system with interactive explanations</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">4</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Team Distribution</div>
-                <div className="text-xs text-zinc-500">Who builds what - execution planning</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">5</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Cost & Tradeoff Analysis</div>
-                <div className="text-xs text-zinc-500">Evaluate engineering maturity and decisions</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">6</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Complete Summary</div>
-                <div className="text-xs text-zinc-500">Full breakdown ready for viva defense</div>
-              </div>
-            </li>
-            <li className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">7</span>
-              <div>
-                <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">Execution Blueprint</div>
-                <div className="text-xs text-zinc-500">Step-by-step development plan (Final)</div>
-              </div>
-            </li>
+            {[
+              { label: "Define Project", desc: "Name, goal, scale, and data sensitivity" },
+              { label: "Answer Design Questions", desc: "7 questions that constraint your architecture" },
+              { label: "Design Your Architecture", desc: "Pick components — algorithm enforces your requirements" },
+              { label: "Architecture Diagram", desc: "See your design visualised as a professional diagram" },
+              { label: "Architecture Review", desc: "Defend your choices — resolve algorithm-detected issues" },
+              { label: "Team Setup", desc: "Add your team — greedy algorithm distributes tasks by skill" },
+              { label: "Cost Analysis", desc: "Per-component cloud pricing of YOUR design" },
+              { label: "Summary & Grade", desc: "Full report card with letter grade — ready for viva" },
+              { label: "Execution Blueprint", desc: "Week-by-week build plan based on your architecture" },
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-4 group hover:translate-x-2 transition-transform">
+                <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-purple-400 font-bold flex-shrink-0">{i + 1}</span>
+                <div>
+                  <div className="text-zinc-300 group-hover:text-white transition-colors font-medium">{step.label}</div>
+                  <div className="text-xs text-zinc-500">{step.desc}</div>
+                </div>
+              </li>
+            ))}
           </ol>
+
         </div>
 
         <button

@@ -6,12 +6,90 @@ import { projectToCanvas } from "@/lib/student-mode/canvas-layout";
 import { explainNode } from "@/lib/student-mode/explain";
 import { explainEdge } from "@/lib/student-mode/explain-edge";
 import { estimateCost } from "@/lib/student-mode/cost-estimator";
+import { loadBuild } from "@/lib/student-mode/build-store";
+import { COMPONENTS, ComponentId } from "@/lib/student-mode/component-catalog";
 import NodeExplain from "@/components/student-mode/NodeExplain";
 import BackendDecision from "@/components/student-mode/BackendDecision";
 import DecisionPanel from "@/components/student-mode/DecisionPanel";
 import VersionPanel from "@/components/student-mode/VersionPanel";
 import CostPanel from "@/components/student-mode/CostPanel";
 import StepFooter from "@/components/student-mode/StepFooter";
+
+// ── Auto-generate logical edges based on which components are selected ──────
+function buildEdgesFromSelection(selectedIds: ComponentId[]) {
+  const has = (id: ComponentId) => selectedIds.includes(id);
+  const edges: { from: string; to: string; label?: string }[] = [];
+
+  // Frontend → load balancer or api-server
+  if (has("web-frontend")) {
+    if (has("load-balancer")) edges.push({ from: "web-frontend", to: "load-balancer", label: "HTTPS" });
+    else if (has("api-gateway")) edges.push({ from: "web-frontend", to: "api-gateway", label: "HTTPS" });
+    else if (has("api-server")) edges.push({ from: "web-frontend", to: "api-server", label: "REST" });
+  }
+  if (has("mobile-app")) {
+    if (has("api-gateway")) edges.push({ from: "mobile-app", to: "api-gateway", label: "HTTPS" });
+    else if (has("api-server")) edges.push({ from: "mobile-app", to: "api-server", label: "REST" });
+  }
+
+  // Load balancer / gateway → api-server
+  if (has("load-balancer") && has("api-server"))
+    edges.push({ from: "load-balancer", to: "api-server", label: "routes" });
+  if (has("api-gateway") && has("api-server"))
+    edges.push({ from: "api-gateway", to: "api-server", label: "routes" });
+
+  // API server → databases
+  if (has("api-server") && has("auth-service"))
+    edges.push({ from: "api-server", to: "auth-service", label: "verify" });
+  if (has("api-server") && has("primary-db"))
+    edges.push({ from: "api-server", to: "primary-db", label: "read/write" });
+  if (has("api-server") && has("cache"))
+    edges.push({ from: "api-server", to: "cache", label: "cache" });
+  if (has("api-server") && has("message-queue"))
+    edges.push({ from: "api-server", to: "message-queue", label: "publish" });
+  if (has("api-server") && has("object-storage"))
+    edges.push({ from: "api-server", to: "object-storage", label: "upload" });
+
+  // DB replicas
+  if (has("primary-db") && has("read-replica"))
+    edges.push({ from: "primary-db", to: "read-replica", label: "replicate" });
+
+  // Queue → worker
+  if (has("message-queue") && has("backend-worker"))
+    edges.push({ from: "message-queue", to: "backend-worker", label: "consume" });
+  if (has("backend-worker") && has("primary-db"))
+    edges.push({ from: "backend-worker", to: "primary-db", label: "write" });
+
+  // Monitoring
+  if (has("monitoring") && has("api-server"))
+    edges.push({ from: "api-server", to: "monitoring", label: "metrics" });
+
+  // CDN
+  if (has("cdn") && (has("web-frontend") || has("object-storage")))
+    edges.push({ from: "cdn", to: has("object-storage") ? "object-storage" : "web-frontend", label: "serve" });
+
+  return edges;
+}
+
+/* Map catalog component IDs to canvas node types */
+const ID_TO_CANVAS_TYPE: Partial<Record<ComponentId, string>> = {
+  "web-frontend": "frontend",
+  "mobile-app": "frontend",
+  "api-server": "backend",
+  "backend-worker": "backend",
+  "microservices": "backend",
+  "primary-db": "database",
+  "read-replica": "database",
+  "cache": "cache",
+  "load-balancer": "load_balancer",
+  "api-gateway": "backend",
+  "cdn": "frontend",
+  "object-storage": "backend",
+  "message-queue": "queue",
+  "auth-service": "backend",
+  "waf": "backend",
+  "monitoring": "backend",
+};
+
 
 const SIDEBAR_WIDTH = 340;
 
@@ -34,19 +112,33 @@ export default function CanvasPage() {
   } | null>(null);
 
   useEffect(() => {
-    fetch(`/api/student-mode/materialize?projectId=${projectId}`)
-      .then(res => res.json())
-      .then(response => {
-        // Extract architecture from full contract
-        const data = response.architecture || response;
-        if (!data?.nodes) return;
-        setGraph(projectToCanvas(data));
-        // Reasoning available at: response.reasoning (for future use)
-      })
-      .catch(err => {
-        console.error("Failed to load architecture:", err);
+    // ── Load student's OWN build first; fallback to AI architecture ──
+    const buildData = loadBuild(projectId);
+    if (buildData?.selectedIds?.length) {
+      const selectedIds = buildData.selectedIds;
+      const nodes = selectedIds.map((id) => {
+        const comp = COMPONENTS.find((c) => c.id === id);
+        return {
+          id,
+          label: comp?.name ?? id,
+          type: ID_TO_CANVAS_TYPE[id] ?? "backend",
+        };
       });
+      const edges = buildEdgesFromSelection(selectedIds);
+      setGraph(projectToCanvas({ nodes, edges } as any));
+    } else {
+      // Fallback: AI-generated architecture
+      fetch(`/api/student-mode/materialize?projectId=${projectId}`)
+        .then(res => res.json())
+        .then(response => {
+          const data = response.architecture || response;
+          if (!data?.nodes) return;
+          setGraph(projectToCanvas(data));
+        })
+        .catch(err => console.error("Failed to load architecture:", err));
+    }
   }, [projectId]);
+
 
   useEffect(() => {
     fetch(`/api/student-mode/decisions?projectId=${projectId}`)
@@ -73,10 +165,11 @@ export default function CanvasPage() {
       <div className="min-h-screen bg-gradient-to-br from-black via-purple-950/10 to-black text-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-          <div className="text-lg text-zinc-400">Materializing architecture...</div>
+          <div className="text-lg text-zinc-400">Rendering your architecture...</div>
         </div>
       </div>
     );
+
   }
 
   const activeNode = graph.nodes.find((n: any) => n.id === activeNodeId);
@@ -105,7 +198,7 @@ export default function CanvasPage() {
           backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
           backgroundSize: '50px 50px'
         }}></div>
-        
+
         {/* Gradient Orbs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -154,7 +247,7 @@ export default function CanvasPage() {
                           </span>
                         </div>
                         <div className="w-full h-2 bg-zinc-800/50 rounded-full overflow-hidden mb-2">
-                          <div 
+                          <div
                             className={`h-full bg-gradient-to-r ${barColor} transition-all duration-500`}
                             style={{ width: `${percentage}%` }}
                           ></div>
@@ -228,7 +321,7 @@ export default function CanvasPage() {
         {graph.nodes.map((node: any) => {
           const isActive = node.id === activeNodeId;
           const isViolated = constraintError?.affectedNodeType === node.type;
-          
+
           // Node type color mapping
           const nodeColors = {
             frontend: { border: "border-blue-500/50", bg: "from-blue-500/10 to-blue-600/5", glow: "shadow-blue-500/25" },
@@ -237,7 +330,7 @@ export default function CanvasPage() {
             cache: { border: "border-orange-500/50", bg: "from-orange-500/10 to-orange-600/5", glow: "shadow-orange-500/25" },
             queue: { border: "border-yellow-500/50", bg: "from-yellow-500/10 to-yellow-600/5", glow: "shadow-yellow-500/25" },
           };
-          
+
           const colors = nodeColors[node.type as keyof typeof nodeColors] || nodeColors.backend;
 
           return (
@@ -254,16 +347,15 @@ export default function CanvasPage() {
                 group absolute z-10 w-64 backdrop-blur-xl rounded-2xl cursor-pointer transition-all duration-300
                 ${isViolated
                   ? "bg-gradient-to-br from-red-900/40 to-red-800/40 border-2 border-red-500 shadow-lg shadow-red-500/50"
-                  : isActive 
+                  : isActive
                     ? `bg-gradient-to-br ${colors.bg} border-2 ${colors.border} shadow-xl ${colors.glow} scale-105`
                     : `bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 border border-zinc-700/50 hover:${colors.border} hover:shadow-lg hover:${colors.glow} hover:scale-105`}
               `}
             >
               <div className="p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider backdrop-blur-sm ${
-                    isActive ? `bg-gradient-to-r ${colors.bg} ${colors.border} border` : "bg-zinc-800/50 text-zinc-400"
-                  }`}>
+                  <div className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider backdrop-blur-sm ${isActive ? `bg-gradient-to-r ${colors.bg} ${colors.border} border` : "bg-zinc-800/50 text-zinc-400"
+                    }`}>
                     {node.type}
                   </div>
                   {isActive && (
@@ -291,6 +383,11 @@ export default function CanvasPage() {
         className="border-l border-zinc-800/50 bg-gradient-to-b from-zinc-950/95 to-black/95 backdrop-blur-xl p-6 overflow-y-auto"
         style={{ width: SIDEBAR_WIDTH }}
       >
+        {/* Header */}
+        <div className="mb-5 pb-4 border-b border-zinc-800">
+          <h2 className="font-bold text-white text-sm">Your Architecture Diagram</h2>
+          <p className="text-xs text-zinc-500 mt-1">Click any component to understand its role in your system.</p>
+        </div>
         {constraintError ? (
           <div className="bg-red-900/20 border border-red-500 rounded p-4">
             <div className="flex items-center gap-2 text-red-400 font-semibold mb-2">
@@ -298,7 +395,7 @@ export default function CanvasPage() {
               <span>Constraint Violation</span>
             </div>
             <p className="text-sm text-red-300 mb-4">{constraintError.message}</p>
-            
+
             {constraintError.fixes && constraintError.fixes.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs text-zinc-400 font-semibold uppercase">Suggested Fixes:</p>
@@ -395,11 +492,10 @@ export default function CanvasPage() {
                           return (
                             <span
                               key={key}
-                              className={`px-2 py-1 rounded ${
-                                isPositive
+                              className={`px-2 py-1 rounded ${isPositive
                                   ? "bg-green-900/30 text-green-400"
                                   : "bg-red-900/30 text-red-400"
-                              }`}
+                                }`}
                             >
                               {isPositive ? "+" : ""}{value} {key}
                             </span>

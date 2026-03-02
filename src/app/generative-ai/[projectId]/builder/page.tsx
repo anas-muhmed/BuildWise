@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import Toast from "@/components/ui/Toast";
+import { useAuth } from "@/lib/authContext";
+import LoginModal from "@/components/LoginModal";
 import { useParams, useRouter } from "next/navigation";
 import ModuleStepper from "@/components/generative-ai-v2/ModuleStepper";
 import ModuleCanvas from "@/components/generative-ai-v2/ModuleCanvas";
@@ -9,10 +12,18 @@ import AdminConflictQueue, { ConflictItem } from "@/components/generative-ai-v2/
 import * as api from "@/lib/frontend/api";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
-export default function BuilderPageClient() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: "error" | "success" | "info" } | null>(null);
   const params = useParams() as { projectId: string };
   const projectId = params?.projectId;
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  }, [isAuthenticated, isLoading]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [modules, setModules] = useState<any[]>([]);
@@ -31,12 +42,19 @@ export default function BuilderPageClient() {
     try {
       const m = await api.fetchModules(projectId, token);
       if (m.ok) setModules(m.modules || []);
-      else setModules([]);
+      else {
+        setModules([]);
+        setToast({ message: "Failed to load modules.", type: "error" });
+      }
       const s = await api.fetchLatestSnapshot(projectId, token);
       if (s.ok) setSnapshot(s.snapshot || null);
-      else setSnapshot(null);
+      else {
+        setSnapshot(null);
+        setToast({ message: "Failed to load snapshot.", type: "error" });
+      }
     } catch (err) {
       console.error("loadAll error", err);
+      setToast({ message: "An error occurred while loading data.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -69,12 +87,16 @@ export default function BuilderPageClient() {
     if (!currentModule) throw new Error("no module");
     try {
       const res = await api.saveModuleEdits(projectId!, currentModule._id, { nodes: payload.nodes, edges: payload.edges }, token);
-      if (!res.ok) throw new Error(res.error || "save failed");
+      if (!res.ok) {
+        setToast({ message: res.error || "Failed to save module edits.", type: "error" });
+        throw new Error(res.error || "save failed");
+      }
       // update local module
       setModules(prev => prev.map(m => (m._id === currentModule._id ? res.module : m)));
       return res.module;
     } catch (err) {
       console.error("Save error:", err);
+      setToast({ message: "An error occurred while saving edits.", type: "error" });
       throw err;
     }
   }, [currentModule, projectId, token]);
@@ -98,11 +120,15 @@ export default function BuilderPageClient() {
   const handleReorder = useCallback(async (newOrderIds: string[]) => {
     try {
       const res = await api.reorderModules(projectId!, newOrderIds, token);
-      if (!res.ok) throw new Error(res.error || "reorder failed");
+      if (!res.ok) {
+        setToast({ message: res.error || "Failed to reorder modules.", type: "error" });
+        throw new Error(res.error || "reorder failed");
+      }
       // reorder applied server-side — refresh modules
       await loadAll();
     } catch (err) {
       console.error("reorder failed", err);
+      setToast({ message: "An error occurred while reordering modules.", type: "error" });
       // fallback: reorder locally
       setModules(prev => {
         const map = new Map(prev.map(p => [p._id, p]));
@@ -117,10 +143,14 @@ export default function BuilderPageClient() {
     try {
       const resp = await api.fetchConflicts(projectId!, token);
       if (resp.ok) setConflicts(resp.conflicts || []);
-      else setConflicts([]);
+      else {
+        setConflicts([]);
+        setToast({ message: "Failed to load conflicts.", type: "error" });
+      }
     } catch (err) {
       console.error("fetchConflicts failed", err);
       setConflicts([]);
+      setToast({ message: "An error occurred while loading conflicts.", type: "error" });
     }
   }, [projectId, token]);
 
@@ -129,6 +159,27 @@ export default function BuilderPageClient() {
     alert(`Resolve called for ${id} — implement server-side resolver.`);
     setConflicts(prev => prev.filter(c => c.id !== id));
   }, []);
+
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </>
+    );
+  }
 
   if (loading) {
     return (

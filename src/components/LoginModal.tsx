@@ -71,7 +71,8 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
 
       // Success - navigate without full page refresh
       onClose();
-      if (redirectTo) {
+      // Always redirect to dashboard if no redirectTo is provided
+      if (redirectTo && redirectTo !== window.location.pathname) {
         router.push(redirectTo);
       } else {
         router.push("/");

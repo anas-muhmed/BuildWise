@@ -1,6 +1,8 @@
 // app/generative-ai/[id]/proposal/page.tsx
 "use client";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/authContext";
+import LoginModal from "@/components/LoginModal";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
@@ -17,7 +19,15 @@ type StackChoice = {
 };
 
 export default function ProposalPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  }, [isAuthenticated, isLoading]);
   const params = useParams();
   const projectId = params.projectId as string;
 
@@ -103,22 +113,16 @@ export default function ProposalPage() {
     }
   };
 
+
   if (isLoading || isGenerating) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Tech Stack Proposal">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="text-6xl mb-4 animate-bounce">🧠</div>
-            <div className="text-2xl font-bold text-white mb-2">
-              AI is analyzing your requirements...
-            </div>
-            <div className="text-zinc-400">Building your custom tech stack</div>
-            <div className="mt-6 w-64 mx-auto bg-zinc-800 rounded-full h-2 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 rounded-full animate-pulse" style={{width: "70%"}} />
-            </div>
-          </div>
-        </div>
-      </DashboardLayoutWrapper>
+      <>
+        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
+      </>
     );
   }
 
