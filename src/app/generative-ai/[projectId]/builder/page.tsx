@@ -12,7 +12,8 @@ import AdminConflictQueue, { ConflictItem } from "@/components/generative-ai-v2/
 import * as api from "@/lib/frontend/api";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 
-  const { isAuthenticated, isLoading } = useAuth();
+export default function BuilderPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: "error" | "success" | "info" } | null>(null);
   const params = useParams() as { projectId: string };
@@ -20,10 +21,10 @@ import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       setShowLoginModal(true);
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, authLoading]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [modules, setModules] = useState<any[]>([]);
@@ -161,15 +162,14 @@ import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
   }, []);
 
 
-  if (isLoading) {
+  if (authLoading) {
     return null;
   }
 
   if (!isAuthenticated) {
     return (
       <>
-        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
-        {/* Toast Notification */}
+        <LoginModal isOpen={showLoginModal} onClose={() => { }} redirectTo="/" />
         {toast && (
           <Toast
             message={toast.message}
@@ -268,10 +268,10 @@ import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
         </div>
       </div>
 
-      <AdminConflictQueue 
-        open={conflictOpen} 
-        onClose={() => setConflictOpen(false)} 
-        conflicts={conflicts} 
+      <AdminConflictQueue
+        open={conflictOpen}
+        onClose={() => setConflictOpen(false)}
+        conflicts={conflicts}
         projectId={projectId}
         onResolve={resolveConflict}
         onResolved={(snap) => {

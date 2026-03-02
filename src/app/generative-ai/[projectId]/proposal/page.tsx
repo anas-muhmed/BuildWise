@@ -19,15 +19,15 @@ type StackChoice = {
 };
 
 export default function ProposalPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       setShowLoginModal(true);
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, authLoading]);
   const params = useParams();
   const projectId = params.projectId as string;
 
@@ -37,7 +37,7 @@ export default function ProposalPage() {
 
   useEffect(() => {
     loadProposal();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProposal = async () => {
@@ -90,7 +90,7 @@ export default function ProposalPage() {
       const token = localStorage.getItem("token");
       const res = await fetch(`/api/generative/projects/${projectId}/modules/generate`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
@@ -114,14 +114,14 @@ export default function ProposalPage() {
   };
 
 
-  if (isLoading || isGenerating) {
+  if (authLoading || isLoading || isGenerating) {
     return null;
   }
 
   if (!isAuthenticated) {
     return (
       <>
-        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
+        <LoginModal isOpen={showLoginModal} onClose={() => { }} redirectTo="/" />
       </>
     );
   }
@@ -154,7 +154,7 @@ export default function ProposalPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {proposal.map((choice, idx) => {
             return (
-              <div 
+              <div
                 key={idx}
                 className="bg-zinc-900 rounded-2xl border-2 border-zinc-800 p-6 transition-all hover:border-zinc-700 hover:scale-105"
               >
@@ -191,7 +191,7 @@ export default function ProposalPage() {
                     <div className="text-sm font-semibold text-zinc-400 mb-2">Trade-offs</div>
                     <div className="flex flex-wrap gap-2">
                       {choice.alternatives.slice(0, 3).map((alt, i) => (
-                        <span 
+                        <span
                           key={i}
                           className="px-3 py-1 bg-zinc-800/50 text-zinc-400 rounded-full text-xs"
                         >
