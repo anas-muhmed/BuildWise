@@ -7,9 +7,10 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 // Get single project
 export async function GET(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const user = await getAuthUser(req);
     if (!user || user instanceof NextResponse) {
       return user || NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,9 +19,10 @@ export async function GET(
     await connectDB();
 
     const project = await DraftProject.findOne({
-      _id: params.projectId,
+      _id: projectId,
       owner_id: user.id
     }).lean();
+
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
