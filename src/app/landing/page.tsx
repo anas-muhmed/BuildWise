@@ -2,40 +2,19 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/authContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import LoginModal from "@/components/LoginModal";
+import { useEffect } from "react";
 
 /**
  * Public Landing Page
  * - Shows when user is NOT authenticated
- * - Marketing content with CTA to register/login
+ * - Sign In → /login, Get Started / Sign Up → /register
  */
 
 export default function PublicLandingPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
 
   useEffect(() => {
-    // If already authenticated, redirect to app
-    if (!isLoading && isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  const openLoginModal = () => {
-    setLoginMode("login");
-    setShowLoginModal(true);
-  };
-
-  const openRegisterModal = () => {
-    setLoginMode("register");
-    setShowLoginModal(true);
-  };
-
-  useEffect(() => {
-    // If already authenticated, redirect to app
     if (!isLoading && isAuthenticated) {
       router.push("/");
     }
@@ -49,9 +28,7 @@ export default function PublicLandingPage() {
     );
   }
 
-  if (isAuthenticated) {
-    return null; // Will redirect
-  }
+  if (isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -63,18 +40,18 @@ export default function PublicLandingPage() {
               BuildWise
             </div>
             <div className="flex gap-3">
-              <button 
-                onClick={openLoginModal}
+              <Link
+                href="/login"
                 className="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors"
               >
                 Sign In
-              </button>
-              <button 
-                onClick={openRegisterModal}
+              </Link>
+              <Link
+                href="/register"
                 className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md"
               >
                 Get Started Free
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -95,18 +72,18 @@ export default function PublicLandingPage() {
             simplicity, AI-powered suggestions, and guided learning for beginners.
           </p>
           <div className="flex gap-4 justify-center">
-            <button 
-              onClick={openRegisterModal}
+            <Link
+              href="/register"
               className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:scale-105"
             >
               Start Building Free →
-            </button>
-            <button 
-              onClick={openLoginModal}
+            </Link>
+            <Link
+              href="/login"
               className="px-8 py-4 border-2 border-gray-300 text-gray-700 text-lg rounded-xl hover:border-blue-600 hover:text-blue-600 transition-all"
             >
-              View Demo
-            </button>
+              Sign In
+            </Link>
           </div>
         </div>
       </section>
@@ -175,12 +152,12 @@ export default function PublicLandingPage() {
           <p className="text-xl mb-8 opacity-90">
             Join hundreds of architects and developers using BuildWise
           </p>
-          <button 
-            onClick={openRegisterModal}
-            className="px-10 py-4 bg-white text-blue-600 text-lg font-semibold rounded-xl hover:scale-105 transition-all shadow-lg"
+          <Link
+            href="/register"
+            className="inline-block px-10 py-4 bg-white text-blue-600 text-lg font-semibold rounded-xl hover:scale-105 transition-all shadow-lg"
           >
             Create Free Account →
-          </button>
+          </Link>
         </div>
       </section>
 
@@ -200,14 +177,6 @@ export default function PublicLandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        initialMode={loginMode}
-        redirectTo="/"
-      />
     </div>
   );
 }

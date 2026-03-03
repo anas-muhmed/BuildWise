@@ -1,11 +1,12 @@
 // app/login/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/authContext";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [loading, setLoading] = useState(false),
@@ -13,6 +14,9 @@ export default function LoginPage() {
     [remember, setRemember] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+  const { login: authLogin } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +36,12 @@ export default function LoginPage() {
         throw new Error(data?.error || "Login failed");
       }
 
-      // Store token in localStorage
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        authLogin(data.token);
       }
 
-      // redirect to dashboard
-      router.push("/");
+      // Go back to where they came from
+      router.push(redirectTo);
     } catch (err: unknown) {
       setError((err as Error)?.message || "Unexpected error");
       console.error("Login error:", err);
@@ -163,10 +166,10 @@ export default function LoginPage() {
               className="flex items-center justify-center gap-2 rounded-lg px-4 py-3 bg-zinc-800/50 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 transition-all"
             >
               <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
-                <path d="M44 24.5c0-.7-.06-1.3-.17-1.92H24v4.02h11.95c-.52 2.82-2.1 5.2-4.48 6.8v2.84h7.25C41.5 35.9 44 30.6 44 24.5z" fill="#4285F4"/>
-                <path d="M24 44c5.9 0 10.84-1.98 14.45-5.38l-7.25-2.84c-2.02 1.36-4.6 2.1-7.2 2.1-5.54 0-10.24-3.73-11.92-8.74H4.24v2.76C7.88 38.66 15.48 44 24 44z" fill="#34A853"/>
-                <path d="M12.08 27.04a14.5 14.5 0 017.92-10.47v-2.92H12.75A24.02 24.02 0 004 24.5c0 3.8.92 7.4 2.59 10.66l5.49-2.12z" fill="#FBBC05"/>
-                <path d="M24 13.5c3.21 0 6.12 1.1 8.4 3.27l6.27-6.27C35.36 6.72 30.45 4.5 24 4.5 15.48 4.5 7.88 9.84 4.24 17.27l7.83 2.76C13.76 17.23 18.46 13.5 24 13.5z" fill="#EA4335"/>
+                <path d="M44 24.5c0-.7-.06-1.3-.17-1.92H24v4.02h11.95c-.52 2.82-2.1 5.2-4.48 6.8v2.84h7.25C41.5 35.9 44 30.6 44 24.5z" fill="#4285F4" />
+                <path d="M24 44c5.9 0 10.84-1.98 14.45-5.38l-7.25-2.84c-2.02 1.36-4.6 2.1-7.2 2.1-5.54 0-10.24-3.73-11.92-8.74H4.24v2.76C7.88 38.66 15.48 44 24 44z" fill="#34A853" />
+                <path d="M12.08 27.04a14.5 14.5 0 017.92-10.47v-2.92H12.75A24.02 24.02 0 004 24.5c0 3.8.92 7.4 2.59 10.66l5.49-2.12z" fill="#FBBC05" />
+                <path d="M24 13.5c3.21 0 6.12 1.1 8.4 3.27l6.27-6.27C35.36 6.72 30.45 4.5 24 4.5 15.48 4.5 7.88 9.84 4.24 17.27l7.83 2.76C13.76 17.23 18.46 13.5 24 13.5z" fill="#EA4335" />
               </svg>
               Google
             </button>
@@ -193,5 +196,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
