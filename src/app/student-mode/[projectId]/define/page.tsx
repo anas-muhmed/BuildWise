@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import StepFooter from "@/components/student-mode/StepFooter";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 type DefinePayload = {
   projectName: string;
@@ -47,6 +48,9 @@ function computeImplications(form: DefinePayload): { icon: string; text: string 
 export default function DefineProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useRequireAuth();
+  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!isAuthenticated) return null;
 
   const [form, setForm] = useState<DefinePayload>({
     projectName: "",

@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { reasoningQuestions } from "@/lib/student-mode/reasoning";
 import StepFooter from "@/components/student-mode/StepFooter";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 // ─── Live score computation from answers ──────────────────────────────────────
 //  We compute scores purely from the answer map — no backend call needed.
@@ -119,6 +120,9 @@ function LiveBar({
 export default function ReasoningPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useRequireAuth();
+  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!isAuthenticated) return null;
 
   const [state, setState] = useState<any>(null);
   const [prevScores, setPrevScores] = useState<Scores | null>(null);

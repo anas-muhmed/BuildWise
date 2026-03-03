@@ -11,6 +11,7 @@ import {
 } from "@/lib/student-mode/component-catalog";
 import { saveBuild, loadBuild } from "@/lib/student-mode/build-store";
 import StepFooter from "@/components/student-mode/StepFooter";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 // ── Category colour map ─────────────────────────────────────────────────────
 const CAT_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -57,10 +58,10 @@ function ComponentCard({
         <button
             onClick={onToggle}
             className={`group w-full text-left rounded-2xl border p-4 transition-all duration-200 relative overflow-hidden ${selected
-                    ? risky
-                        ? "bg-amber-900/20 border-amber-500/60 shadow-lg shadow-amber-500/10"
-                        : "bg-violet-900/20 border-violet-500/60 shadow-lg shadow-violet-500/10 scale-[1.01]"
-                    : "bg-zinc-900/50 border-zinc-800/60 hover:border-zinc-600 hover:bg-zinc-900/70"
+                ? risky
+                    ? "bg-amber-900/20 border-amber-500/60 shadow-lg shadow-amber-500/10"
+                    : "bg-violet-900/20 border-violet-500/60 shadow-lg shadow-violet-500/10 scale-[1.01]"
+                : "bg-zinc-900/50 border-zinc-800/60 hover:border-zinc-600 hover:bg-zinc-900/70"
                 }`}
         >
             {/* Selected checkmark */}
@@ -97,6 +98,9 @@ function ComponentCard({
 // ── Main page ───────────────────────────────────────────────────────────────
 export default function BuildPage() {
     const { projectId } = useParams<{ projectId: string }>();
+    const { isAuthenticated, isLoading } = useRequireAuth();
+    if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (!isAuthenticated) return null;
 
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [selected, setSelected] = useState<Set<ComponentId>>(new Set());
@@ -266,8 +270,8 @@ export default function BuildPage() {
                                         key={r.id}
                                         onClick={() => toggle(r.id)}
                                         className={`flex items-start gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all ${isCovered
-                                                ? "bg-emerald-900/20 border border-emerald-700/30"
-                                                : "bg-red-900/20 border border-red-700/30 hover:bg-red-900/30"
+                                            ? "bg-emerald-900/20 border border-emerald-700/30"
+                                            : "bg-red-900/20 border border-red-700/30 hover:bg-red-900/30"
                                             }`}
                                     >
                                         <span className={`text-base shrink-0 mt-0.5 ${isCovered ? "text-emerald-400" : "text-red-400"}`}>
@@ -301,8 +305,8 @@ export default function BuildPage() {
                                             key={r.id}
                                             onClick={() => toggle(r.id)}
                                             className={`flex items-start gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all ${isCovered
-                                                    ? "bg-emerald-900/20 border border-emerald-700/30"
-                                                    : "bg-zinc-800/40 border border-zinc-700/30 hover:bg-zinc-800/60"
+                                                ? "bg-emerald-900/20 border border-emerald-700/30"
+                                                : "bg-zinc-800/40 border border-zinc-700/30 hover:bg-zinc-800/60"
                                                 }`}
                                         >
                                             <span className={`text-base shrink-0 mt-0.5 ${isCovered ? "text-emerald-400" : "text-zinc-500"}`}>

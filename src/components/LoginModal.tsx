@@ -1,24 +1,25 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/authContext";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  redirectTo?: string; // Where to go after successful login
-  initialMode?: "login" | "register"; // Which form to show initially
+  redirectTo?: string;
+  initialMode?: "login" | "register";
+  forceAuth?: boolean; // when true, backdrop click won't dismiss
 }
 
-export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = "login" }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = "login", forceAuth = false }: LoginModalProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remember, setRemember] = useState(false);
   const [mode, setMode] = useState<"login" | "register">(initialMode);
-  
-  const router = useRouter();
+
+  const { login: authLogin } = useAuth();
 
   // Reset form when modal opens/closes or initialMode changes
   useEffect(() => {
@@ -32,16 +33,16 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
     }
   }, [isOpen, initialMode]);
 
-  // Close on ESC key
+  // Close on ESC key (only if not forced)
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !forceAuth) onClose();
     };
     if (isOpen) {
       window.addEventListener("keydown", handleEsc);
       return () => window.removeEventListener("keydown", handleEsc);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, forceAuth]);
 
   if (!isOpen) return null;
 
@@ -64,23 +65,13 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
         throw new Error(data?.error || `${mode === "login" ? "Login" : "Registration"} failed`);
       }
 
-      // Store token
+      // Update global auth state (also closes modal)
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        authLogin(data.token);
       }
-
-      // Success - navigate without full page refresh
       onClose();
-      // Always redirect to dashboard if no redirectTo is provided
-      if (redirectTo && redirectTo !== window.location.pathname) {
-        router.push(redirectTo);
-      } else {
-        router.push("/");
-      }
-      
-      // REMOVED: router.refresh() - causes full page reload
-      // Instead, AuthContext will automatically update via localStorage
-      // and components will re-render based on the new auth state
+      // Stay on the same page — page will re-render with auth state
+      window.location.reload();
     } catch (err: any) {
       setError(err?.message || "Unexpected error");
       console.error(`${mode} error:`, err);
@@ -91,10 +82,10 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {/* Backdrop — not clickable in forceAuth mode */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={forceAuth ? undefined : onClose}
         aria-hidden="true"
       />
 
@@ -137,8 +128,8 @@ export default function LoginModal({ isOpen, onClose, redirectTo, initialMode = 
             {mode === "login" ? "Welcome back" : "Get started free"}
           </h2>
           <p className="mt-2 text-center text-sm text-zinc-400">
-            {mode === "login" 
-              ? "Sign in to continue to BuildWise" 
+            {mode === "login"
+              ? "Sign in to continue to BuildWise"
               : "Create your account to start building"}
           </p>
 

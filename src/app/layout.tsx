@@ -1,5 +1,6 @@
 import "./globals.css";
 import { AuthProvider } from "@/lib/authContext";
+import GlobalAuthModal from "@/components/GlobalAuthModal";
 
 export const metadata = {
   title: 'BuildWise - Architecture Design Platform',
@@ -16,6 +17,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
+          <GlobalAuthModal />
         </AuthProvider>
       </body>
     </html>

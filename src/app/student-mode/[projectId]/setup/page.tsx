@@ -1,10 +1,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export default function StudentModeSetup() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useRequireAuth();
+
+  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
