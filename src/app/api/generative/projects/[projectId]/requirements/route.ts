@@ -8,10 +8,12 @@ import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const user = await getAuthUser(req);
+
     if (!user || user instanceof NextResponse) {
       return user || NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -29,7 +31,7 @@ export async function PATCH(
     await connectDB();
 
     const project = await DraftProject.findOne({
-      _id: params.projectId,
+      _id: projectId,
       owner_id: user.id
     });
 
@@ -45,7 +47,7 @@ export async function PATCH(
 
     // Audit log
     await AuditLog.create({
-      project_id: params.projectId,
+      project_id: projectId,
       action: "requirements_saved",
       by: user.id,
       metadata: { requirements },

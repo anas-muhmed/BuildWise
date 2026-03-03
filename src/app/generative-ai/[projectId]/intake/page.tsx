@@ -1,10 +1,9 @@
 // app/generative-ai/[id]/intake/page.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/authContext";
-import LoginModal from "@/components/LoginModal";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 // 🎯 MASTER PLAN: Phase 1 - Smart Intake (conversational + structured)
 // Q1: Target users → Q2: Traffic → Q3: Budget/Team → Q4: Features → Q5: Priorities
@@ -62,18 +61,12 @@ const questions: Question[] = [
 ];
 
 export default function IntakePage() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { isAuthenticated, isLoading } = useRequireAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setShowLoginModal(true);
-    }
-  }, [isAuthenticated, isLoading]);
   const params = useParams();
   const projectId = params.projectId as string;
 
+  // All hooks must be declared before any early returns (Rules of Hooks)
   const [currentStep, setCurrentStep] = useState(0);
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const [answers, setAnswers] = useState<Record<string, any>>({
@@ -90,6 +83,7 @@ export default function IntakePage() {
 
   // Load project details
   useEffect(() => {
+    if (!projectId) return;
     const token = localStorage.getItem("token");
     fetch(`/api/generative/projects/${projectId}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
@@ -98,6 +92,10 @@ export default function IntakePage() {
       .then(data => setProject(data))
       .catch(err => console.error(err));
   }, [projectId]);
+
+  // Auth guard — after all hooks
+  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!isAuthenticated) return null;
 
   const currentQuestion = questions[currentStep];
   const isLastQuestion = currentStep === questions.length - 1;
@@ -144,10 +142,10 @@ export default function IntakePage() {
     const requirements = {
       app_type: project?.starter_prompt || "web app",
       users: answers.users,
-      traffic: answers.traffic.includes("Small") ? "small" : 
-               answers.traffic.includes("Medium") ? "medium" : "large",
+      traffic: answers.traffic.includes("Small") ? "small" :
+        answers.traffic.includes("Medium") ? "medium" : "large",
       budget: answers.budget.includes("Low") ? "low" :
-              answers.budget.includes("Medium") ? "medium" : "high",
+        answers.budget.includes("Medium") ? "medium" : "high",
       team_size: answers.team_size,
       must_have_features: answers.features,
       priorities: answers.priorities
@@ -173,17 +171,6 @@ export default function IntakePage() {
   };
 
 
-  if (isLoading) {
-    return null;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <>
-        <LoginModal isOpen={showLoginModal} onClose={() => {}} redirectTo={router.asPath || "/"} />
-      </>
-    );
-  }
 
   if (!project) {
     return (
@@ -198,145 +185,142 @@ export default function IntakePage() {
   return (
     <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Smart Intake">
       <div className="space-y-6">
-          {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-zinc-400">
-                Step {currentStep + 1} of {questions.length}
-              </span>
-              <span className="text-sm font-medium text-zinc-400">
-                {Math.round(((currentStep + 1) / questions.length) * 100)}% Complete
-              </span>
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-zinc-400">
+              Step {currentStep + 1} of {questions.length}
+            </span>
+            <span className="text-sm font-medium text-zinc-400">
+              {Math.round(((currentStep + 1) / questions.length) * 100)}% Complete
+            </span>
+          </div>
+          <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 transition-all duration-500"
+              style={{ width: `${((currentStep + 1) / questions.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Question Card */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 mb-6">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-white">
+              {currentQuestion.label}
+            </h2>
+            {currentQuestion.helper && (
+              <p className="text-sm text-zinc-500 mt-1">
+                {currentQuestion.helper}
+              </p>
+            )}
+          </div>
+
+          {/* Multi-Select Chips */}
+          {currentQuestion.type === "multi-select" && (
+            <div className="flex flex-wrap gap-3">
+              {currentQuestion.options?.map(option => {
+                const isSelected = answers[currentQuestion.id]?.includes(option);
+                return (
+                  <button
+                    key={option}
+                    onClick={() => handleMultiSelect(option)}
+                    className={`px-6 py-3 rounded-xl font-medium transition-all cursor-pointer ${isSelected
+                      ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                      }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
             </div>
-            <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 transition-all duration-500"
-                style={{ width: `${((currentStep + 1) / questions.length) * 100}%` }}
+          )}
+
+          {/* Radio Buttons */}
+          {currentQuestion.type === "radio" && (
+            <div className="space-y-3">
+              {currentQuestion.options?.map(option => {
+                const isSelected = answers[currentQuestion.id] === option;
+                return (
+                  <button
+                    key={option}
+                    onClick={() => handleRadio(option)}
+                    className={`w-full text-left px-6 py-4 rounded-xl font-medium transition-all border-2 cursor-pointer ${isSelected
+                      ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white border-purple-500 shadow-lg"
+                      : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:shadow-md"
+                      }`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Slider */}
+          {currentQuestion.type === "slider" && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-zinc-400">Team size:</span>
+                <span className="text-3xl font-bold text-purple-400">{answers.team_size}</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={answers.team_size}
+                onChange={(e) => handleSlider(parseInt(e.target.value))}
+                className="w-full h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
               />
+              <div className="flex justify-between text-xs text-zinc-500 mt-2">
+                <span>Solo (1)</span>
+                <span>Small (5)</span>
+                <span>Large (20+)</span>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Question Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 mb-6">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white">
-                {currentQuestion.label}
-              </h2>
-              {currentQuestion.helper && (
-                <p className="text-sm text-zinc-500 mt-1">
-                  {currentQuestion.helper}
-                </p>
-              )}
+          {/* Tags Input */}
+          {currentQuestion.type === "tags" && (
+            <div className="flex flex-wrap gap-3">
+              {currentQuestion.options?.map(option => {
+                const isSelected = answers[currentQuestion.id]?.includes(option);
+                return (
+                  <button
+                    key={option}
+                    onClick={() => handleMultiSelect(option)}
+                    className={`px-5 py-2.5 rounded-full font-medium text-sm transition-all cursor-pointer ${isSelected
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-105"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                      }`}
+                  >
+                    {isSelected ? "✓ " : ""}{option}
+                  </button>
+                );
+              })}
             </div>
+          )}
+        </div>
 
-            {/* Multi-Select Chips */}
-            {currentQuestion.type === "multi-select" && (
-              <div className="flex flex-wrap gap-3">
-                {currentQuestion.options?.map(option => {
-                  const isSelected = answers[currentQuestion.id]?.includes(option);
-                  return (
-                    <button
-                      key={option}
-                      onClick={() => handleMultiSelect(option)}
-                      className={`px-6 py-3 rounded-xl font-medium transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        {/* Navigation */}
+        <div className="flex justify-between items-center">
+          <button
+            onClick={() => currentStep > 0 && setCurrentStep(currentStep - 1)}
+            disabled={currentStep === 0}
+            className="px-6 py-3 bg-zinc-800 text-zinc-300 rounded-xl font-medium hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+          >
+            ← Back
+          </button>
 
-            {/* Radio Buttons */}
-            {currentQuestion.type === "radio" && (
-              <div className="space-y-3">
-                {currentQuestion.options?.map(option => {
-                  const isSelected = answers[currentQuestion.id] === option;
-                  return (
-                    <button
-                      key={option}
-                      onClick={() => handleRadio(option)}
-                      className={`w-full text-left px-6 py-4 rounded-xl font-medium transition-all border-2 cursor-pointer ${
-                        isSelected
-                          ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white border-purple-500 shadow-lg"
-                          : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:shadow-md"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Slider */}
-            {currentQuestion.type === "slider" && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-zinc-400">Team size:</span>
-                  <span className="text-3xl font-bold text-purple-400">{answers.team_size}</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={answers.team_size}
-                  onChange={(e) => handleSlider(parseInt(e.target.value))}
-                  className="w-full h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-                <div className="flex justify-between text-xs text-zinc-500 mt-2">
-                  <span>Solo (1)</span>
-                  <span>Small (5)</span>
-                  <span>Large (20+)</span>
-                </div>
-              </div>
-            )}
-
-            {/* Tags Input */}
-            {currentQuestion.type === "tags" && (
-              <div className="flex flex-wrap gap-3">
-                {currentQuestion.options?.map(option => {
-                  const isSelected = answers[currentQuestion.id]?.includes(option);
-                  return (
-                    <button
-                      key={option}
-                      onClick={() => handleMultiSelect(option)}
-                      className={`px-5 py-2.5 rounded-full font-medium text-sm transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-105"
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                      }`}
-                    >
-                      {isSelected ? "✓ " : ""}{option}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => currentStep > 0 && setCurrentStep(currentStep - 1)}
-              disabled={currentStep === 0}
-              className="px-6 py-3 bg-zinc-800 text-zinc-300 rounded-xl font-medium hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
-            >
-              ← Back
-            </button>
-
-            <button
-              onClick={handleNext}
-              disabled={!canProceed() || isSubmitting}
-              className="px-8 py-3 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-xl font-semibold hover:opacity-90 shadow-xl shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all hover:scale-105 active:scale-95"
-            >
-              {isSubmitting ? "Saving..." : isLastQuestion ? "Generate Architecture →" : "Next →"}
-            </button>
-          </div>
+          <button
+            onClick={handleNext}
+            disabled={!canProceed() || isSubmitting}
+            className="px-8 py-3 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-xl font-semibold hover:opacity-90 shadow-xl shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all hover:scale-105 active:scale-95"
+          >
+            {isSubmitting ? "Saving..." : isLastQuestion ? "Generate Architecture →" : "Next →"}
+          </button>
+        </div>
       </div>
     </DashboardLayoutWrapper>
   );
