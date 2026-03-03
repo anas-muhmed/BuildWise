@@ -3,428 +3,276 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
-import { Button } from "@/components/ui/button";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
-  ArrowLeft,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  FileJson,
-  DollarSign,
-  Activity
+  ArrowLeft, CheckCircle, Download, Share2, Copy, ExternalLink,
+  Monitor, Server, Database, Cloud, Sparkles, FileJson, Layers
 } from "lucide-react";
-import ReactFlow, {
-  Node,
-  Edge,
-  Background,
-  Controls,
-  MiniMap,
-  MarkerType
-} from "reactflow";
-import "reactflow/dist/style.css";
 
-interface ModuleNode {
-  id: string;
-  type: string;
-  label: string;
-  meta?: Record<string, unknown>;
-}
+const LAYER_ICONS: Record<string, React.ReactNode> = {
+  frontend: <Monitor className="w-5 h-5 text-blue-400" />,
+  backend: <Server className="w-5 h-5 text-purple-400" />,
+  database: <Database className="w-5 h-5 text-emerald-400" />,
+  hosting: <Cloud className="w-5 h-5 text-amber-400" />,
+};
 
-interface ModuleEdge {
-  from: string;
-  to: string;
-  label?: string;
-}
-
-interface Check {
-  id: string;
-  severity: "info" | "warning" | "critical";
-  category: string;
-  message: string;
-  resolution: string;
-  code?: string;
-}
-
-interface ReadinessReport {
-  overallScore: number;
-  checks: Check[];
-  timestamp: string;
-}
-
-interface CostBreakdown {
-  appServers: number;
-  database: number;
-  cache: number;
-  storage: number;
-  cdn: number;
-  monitoring: number;
-  thirdParty: number;
-}
-
-interface CostScenario {
-  monthly: number;
-  breakdown: CostBreakdown;
-}
-
-interface CostEstimate {
-  low: CostScenario;
-  typical: CostScenario;
-  peak: CostScenario;
-  confidence: "low" | "medium" | "high";
-  assumptions: string[];
-}
+const LAYER_COLORS: Record<string, { bg: string; border: string; accent: string; glow: string }> = {
+  frontend: { bg: "bg-blue-500/10", border: "border-blue-500/30", accent: "text-blue-400", glow: "shadow-blue-500/10" },
+  backend: { bg: "bg-purple-500/10", border: "border-purple-500/30", accent: "text-purple-400", glow: "shadow-purple-500/10" },
+  database: { bg: "bg-emerald-500/10", border: "border-emerald-500/30", accent: "text-emerald-400", glow: "shadow-emerald-500/10" },
+  hosting: { bg: "bg-amber-500/10", border: "border-amber-500/30", accent: "text-amber-400", glow: "shadow-amber-500/10" },
+};
 
 export default function FinalizePage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.projectId as string;
+  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
 
+  const [stack, setStack] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [snapshot, setSnapshot] = useState<{ version: number; nodes: ModuleNode[]; edges: ModuleEdge[]; modules: string[]; createdAt: string } | null>(null);
-  const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
-  const [costs, setCosts] = useState<CostEstimate | null>(null);
-  const [modules, setModules] = useState<{ total: number; approved: number; proposed: number } | null>(null);
-  const [selectedScenario, setSelectedScenario] = useState<"low" | "typical" | "peak">("typical");
 
   useEffect(() => {
-    fetchFinalizeData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Load from localStorage (saved by builder page)
+    const stored = localStorage.getItem(`finalstack-${projectId}`) || localStorage.getItem(`proposal-${projectId}`);
+    if (stored) {
+      setStack(JSON.parse(stored));
+    }
+    setLoading(false);
   }, [projectId]);
 
-  const fetchFinalizeData = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/generative/projects/${projectId}/finalize`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      
-      if (data.ok) {
-        setSnapshot(data.snapshot);
-        setReadiness(data.readinessReport);
-        setCosts(data.costEstimate);
-        setModules(data.modules);
-      } else {
-        alert(data.error || "Failed to load finalize data");
-      }
-    } catch (err) {
-      console.error("Finalize fetch error:", err);
-      alert("Failed to load finalize data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!isAuthenticated) return null;
+
+  if (loading) {
+    return (
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Architecture Summary">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </DashboardLayoutWrapper>
+    );
+  }
+
+  if (!stack) {
+    return (
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Architecture Summary">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Layers className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+            <p className="text-zinc-400 mb-4">No architecture found. Build one first.</p>
+            <button
+              onClick={() => router.push(`/generative-ai/${projectId}/proposal`)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg cursor-pointer hover:bg-purple-700 transition-colors"
+            >
+              Go to Proposals
+            </button>
+          </div>
+        </div>
+      </DashboardLayoutWrapper>
+    );
+  }
 
   const handleExportJSON = () => {
-    if (!snapshot) return;
-    const json = JSON.stringify(snapshot, null, 2);
+    const exportData = {
+      projectId,
+      architecture: stack.name,
+      customized: stack.customized || false,
+      changesFromOriginal: stack.changesFromOriginal || 0,
+      layers: stack.layers,
+      metadata: {
+        monthlyCost: stack.monthlyCost,
+        complexity: stack.complexity,
+        timeToShip: stack.timeToShip,
+        bestFor: stack.bestFor,
+        exportedAt: new Date().toISOString(),
+      }
+    };
+    const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `architecture-v${snapshot.version}.json`;
+    a.download = `architecture-${stack.name?.toLowerCase().replace(/\s+/g, "-") || "export"}.json`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
-  // Convert to React Flow format
-  const { nodes, edges } = React.useMemo(() => {
-    if (!snapshot) return { nodes: [], edges: [] };
-
-    const flowNodes: Node[] = snapshot.nodes.map((node: ModuleNode, index: number) => ({
-      id: node.id,
-      type: "default",
-      position: {
-        x: 150 + (index % 4) * 250,
-        y: 100 + Math.floor(index / 4) * 150
-      },
-      data: { label: node.label }
-    }));
-
-    const flowEdges: Edge[] = snapshot.edges
-      .filter((edge: ModuleEdge) => edge.from && edge.to)
-      .map((edge: ModuleEdge, index: number) => ({
-        id: `e${index}`,
-        source: edge.from,
-        target: edge.to,
-        sourceHandle: null,
-        targetHandle: null,
-        label: edge.label,
-        animated: true,
-        type: "smoothstep",
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: "#6366f1"
-        }
-      }));
-
-    return { nodes: flowNodes, edges: flowEdges };
-  }, [snapshot]);
-
-  if (loading) {
-    return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
-            <p className="mt-4 text-zinc-400">Loading execution handoff...</p>
-          </div>
-        </div>
-      </DashboardLayoutWrapper>
-    );
-  }
-
-  if (!snapshot) {
-    return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-zinc-400">No snapshot found. Accept some modules first.</p>
-            <Button onClick={() => router.back()} className="mt-4">
-              Go Back
-            </Button>
-          </div>
-        </div>
-      </DashboardLayoutWrapper>
-    );
-  }
-
-  const currentCost = costs?.[selectedScenario];
-  const severityConfig = {
-    critical: { icon: AlertTriangle, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" },
-    warning: { icon: AlertTriangle, color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30" },
-    info: { icon: Info, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30" }
+  const handleCopyStack = () => {
+    const text = `🏗️ ${stack.name} Architecture\n\n` +
+      `Frontend: ${stack.layers.frontend.tech}\n` +
+      `Backend: ${stack.layers.backend.tech}\n` +
+      `Database: ${stack.layers.database.tech}\n` +
+      `Hosting: ${stack.layers.hosting.tech}\n` +
+      (stack.layers.extras?.length > 0 ? `\nServices: ${stack.layers.extras.join(", ")}\n` : "") +
+      `\nCost: ${stack.monthlyCost}/mo | Complexity: ${stack.complexity} | Ship: ${stack.timeToShip}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Execution Handoff">
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="panel-elev px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="text-zinc-400 hover:text-white cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-              <div className="h-6 w-px bg-zinc-700" />
-              <h1 className="text-xl font-bold text-white">Execution Handoff</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="px-3 py-1 rounded-full bg-green-600/20 border border-green-500/30 text-xs text-green-300">
-                <CheckCircle className="w-3 h-3 inline mr-1" />
-                Ready for Implementation
-              </div>
-              <div className="px-3 py-1 rounded-full bg-zinc-800/50 text-xs text-zinc-300">
-                v{snapshot.version}
-              </div>
-            </div>
-          </div>
+    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Architecture Summary">
+      <div className="space-y-6">
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 mt-4">
-            <Button
-              onClick={handleExportJSON}
-              variant="outline"
-              size="sm"
-              className="cursor-pointer text-zinc-700 hover:text-zinc-950 border-zinc-700 hover:border-zinc-600"
-            >
-              <FileJson className="w-4 h-4 mr-2" />
-              Export Implementation Blueprint
-            </Button>
-            {/* Enterprise controls - hidden for student demo
-            <Button
-              onClick={handlePublish}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
-              size="sm"
-            >
-              <Rocket className="w-4 h-4 mr-2" />
-              Publish
-            </Button>
-            <Button
-              onClick={handleRollback}
-              variant="outline"
-              size="sm"
-              className="cursor-pointer text-zinc-700 hover:text-zinc-900 border-zinc-700 hover:border-zinc-600"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Rollback
-            </Button>
-            */}
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800 p-8">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => router.push(`/generative-ai/${projectId}/builder`)}
+                  className="p-2 text-zinc-400 hover:text-white bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 transition-all cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <span className="text-sm font-medium text-green-400">Architecture Complete</span>
+                  </div>
+                  <h1 className="text-2xl font-bold text-white">{stack.name}</h1>
+                  <p className="text-sm text-zinc-500 mt-0.5">{stack.tagline}</p>
+                </div>
+              </div>
+
+              {stack.customized && (
+                <div className="px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30">
+                  <span className="text-xs text-purple-300 font-medium">
+                    <Sparkles className="w-3 h-3 inline mr-1" />
+                    {stack.changesFromOriginal} layer{stack.changesFromOriginal > 1 ? "s" : ""} customized
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-white">{stack.monthlyCost}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Monthly Cost</p>
+              </div>
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-white">{stack.timeToShip}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Time to Ship</p>
+              </div>
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-4 text-center">
+                <p className={`text-2xl font-bold ${stack.complexity === "Low" ? "text-green-400" : stack.complexity === "Medium" ? "text-blue-400" : "text-amber-400"}`}>
+                  {stack.complexity}
+                </p>
+                <p className="text-xs text-zinc-500 mt-0.5">Complexity</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Main Layout */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left: Summary Cards */}
-          <div className="col-span-3 space-y-4">
-            {/* Modules Summary */}
-            <div className="panel-soft p-4">
-              <div className="text-xs text-zinc-400 mb-2">Modules</div>
-              <div className="text-2xl font-bold text-white">{modules?.approved}/{modules?.total}</div>
-              <div className="text-xs text-zinc-500">Approved</div>
-            </div>
-
-            {/* Health Score */}
-            <div className="panel-soft p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs text-zinc-400">Health Score</div>
-                <Activity className="w-4 h-4 text-green-400" />
-              </div>
-              <div className="text-2xl font-bold text-white">{readiness?.overallScore || 0}/100</div>
-              <div className={`text-xs ${
-                (readiness?.overallScore || 0) >= 80 ? 'text-green-400' :
-                (readiness?.overallScore || 0) >= 60 ? 'text-yellow-400' : 'text-red-400'
-              }`}>
-                {(readiness?.overallScore || 0) >= 80 ? 'Excellent' :
-                 (readiness?.overallScore || 0) >= 60 ? 'Good' : 'Needs Work'}
-              </div>
-            </div>
-
-            {/* Cost Estimate */}
-            <div className="panel-soft p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs text-zinc-400">Est. Monthly Cost</div>
-                <DollarSign className="w-4 h-4 text-green-400" />
-              </div>
-              <div className="text-2xl font-bold text-white">${currentCost?.monthly || 0}</div>
-              <div className="flex gap-1 mt-2">
-                <button
-                  onClick={() => setSelectedScenario("low")}
-                  className={`px-2 py-1 text-xs rounded cursor-pointer ${
-                    selectedScenario === "low" ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  Low
-                </button>
-                <button
-                  onClick={() => setSelectedScenario("typical")}
-                  className={`px-2 py-1 text-xs rounded cursor-pointer ${
-                    selectedScenario === "typical" ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  Typical
-                </button>
-                <button
-                  onClick={() => setSelectedScenario("peak")}
-                  className={`px-2 py-1 text-xs rounded cursor-pointer ${
-                    selectedScenario === "peak" ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400'
-                  }`}
-                >
-                  Peak
-                </button>
-              </div>
-            </div>
-
-            {/* Nodes & Edges */}
-            <div className="panel-soft p-4">
-              <div className="text-xs text-zinc-400 mb-2">Architecture</div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-300">Nodes</span>
-                  <span className="text-white font-medium">{snapshot.nodes.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-300">Edges</span>
-                  <span className="text-white font-medium">{snapshot.edges.length}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Center: Merged Diagram */}
-          <div className="col-span-6">
-            <div className="panel-elev rounded-xl h-[600px]">
-              <div className="px-4 py-3 border-b border-zinc-800/30">
-                <h3 className="text-sm font-semibold text-white">Full Architecture</h3>
-              </div>
-              <div className="h-[calc(100%-3rem)]">
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  fitView
-                  fitViewOptions={{ padding: 0.3 }}
-                  minZoom={0.3}
-                  maxZoom={1.5}
-                  defaultEdgeOptions={{
-                    animated: true,
-                    type: "smoothstep"
-                  }}
-                >
-                  <Background color="rgba(255,255,255,0.015)" gap={24} />
-                  <Controls className="bg-zinc-900/80 border-zinc-800" />
-                  <MiniMap className="bg-zinc-900/80 border border-zinc-800" nodeColor="#6366f1" />
-                </ReactFlow>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Readiness & Costs */}
-          <div className="col-span-3 space-y-4">
-            {/* Readiness Report */}
-            <div className="panel-soft p-4 max-h-[400px] overflow-y-auto">
-              <h3 className="text-sm font-semibold text-white mb-3">Readiness Checks</h3>
-              <div className="space-y-2">
-                {readiness?.checks.length === 0 ? (
-                  <div className="text-center py-4">
-                    <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                    <p className="text-sm text-green-300">All checks passed!</p>
+        {/* Architecture Layers */}
+        <div>
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-purple-400" />
+            Technology Stack
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(["frontend", "backend", "database", "hosting"] as const).map((layer) => {
+              const info = stack.layers[layer];
+              if (!info) return null;
+              const colors = LAYER_COLORS[layer];
+              return (
+                <div key={layer} className={`rounded-2xl border p-5 ${colors.bg} ${colors.border} shadow-lg ${colors.glow}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    {LAYER_ICONS[layer]}
+                    <span className={`text-xs font-bold uppercase tracking-wider ${colors.accent}`}>{layer}</span>
                   </div>
-                ) : (
-                  readiness?.checks.map((check) => {
-                    const config = severityConfig[check.severity];
-                    const Icon = config.icon;
-                    return (
-                      <div
-                        key={check.id}
-                        className={`p-3 rounded-lg border ${config.bg} ${config.border}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Icon className={`w-4 h-4 ${config.color} mt-0.5`} />
-                          <div className="flex-1">
-                            <div className="text-xs font-medium text-white mb-1">
-                              {check.message}
-                            </div>
-                            <div className="text-xs text-zinc-400">
-                              {check.resolution}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                  <p className="text-white font-semibold text-lg mb-1">{info.tech}</p>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{info.reason}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* Cost Breakdown */}
-            {currentCost && (
-              <div className="panel-soft p-4">
-                <h3 className="text-sm font-semibold text-white mb-3">Cost Breakdown</h3>
+        {/* Additional Services */}
+        {stack.layers.extras?.length > 0 && (
+          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="text-sm font-bold text-white mb-3">Additional Services & Integrations</h2>
+            <div className="flex flex-wrap gap-2">
+              {stack.layers.extras.map((extra: string, i: number) => (
+                <span key={i} className="px-4 py-2 text-sm bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-zinc-300">
+                  {extra}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pros & Cons */}
+        {(stack.pros || stack.cons) && (
+          <div className="grid grid-cols-2 gap-4">
+            {stack.pros && (
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
+                <h2 className="text-sm font-bold text-green-400 mb-3">✓ Advantages</h2>
                 <div className="space-y-2">
-                  {Object.entries(currentCost.breakdown).map(([key, value]) => (
-                    value > 0 && (
-                      <div key={key} className="flex justify-between text-xs">
-                        <span className="text-zinc-400 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                        <span className="text-white font-medium">${value.toFixed(2)}</span>
-                      </div>
-                    )
+                  {stack.pros.map((pro: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <span className="text-green-400 mt-0.5 shrink-0">✓</span> {pro}
+                    </div>
                   ))}
-                  <div className="pt-2 mt-2 border-t border-zinc-800 flex justify-between">
-                    <span className="text-sm font-medium text-white">Total</span>
-                    <span className="text-sm font-bold text-white">${currentCost.monthly.toFixed(2)}/mo</span>
-                  </div>
+                </div>
+              </div>
+            )}
+            {stack.cons && (
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
+                <h2 className="text-sm font-bold text-amber-400 mb-3">⚠ Trade-offs</h2>
+                <div className="space-y-2">
+                  {stack.cons.map((con: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <span className="text-amber-400 mt-0.5 shrink-0">⚠</span> {con}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
+        )}
+
+        {/* Actions */}
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-white mb-4">Export & Share</h2>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleExportJSON}
+              className="flex items-center gap-2 px-5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-zinc-300 hover:text-white hover:border-zinc-600 transition-all cursor-pointer"
+            >
+              <FileJson className="w-4 h-4" />
+              Export as JSON
+            </button>
+            <button
+              onClick={handleCopyStack}
+              className="flex items-center gap-2 px-5 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-zinc-300 hover:text-white hover:border-zinc-600 transition-all cursor-pointer"
+            >
+              {copied ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied!" : "Copy Stack Summary"}
+            </button>
+            <button
+              onClick={() => router.push(`/generative-ai`)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-sm font-medium hover:opacity-90 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              Start New Project
+            </button>
+          </div>
         </div>
+
+        {/* Best For */}
+        {stack.bestFor && (
+          <div className="text-center py-4">
+            <p className="text-xs text-zinc-600">This architecture is best suited for: <span className="text-zinc-400">{stack.bestFor}</span></p>
+          </div>
+        )}
       </div>
     </DashboardLayoutWrapper>
   );
