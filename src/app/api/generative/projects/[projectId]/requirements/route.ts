@@ -1,7 +1,7 @@
 // app/api/generative/projects/[projectId]/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
-import { DraftProject } from "@/lib/backend/models/DraftProject";
+import { DraftProject, AuditLog } from "@/lib/backend/models/DraftProject";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 // 🎯 MASTER PLAN: Phase 1 API - Save structured requirements

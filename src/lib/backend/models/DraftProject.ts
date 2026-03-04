@@ -57,11 +57,11 @@ export interface IDraftProject extends Document {
 // ========================================
 
 const RequirementsSchema = new Schema({
-  app_type: { type: String, required: true },
+  app_type: { type: String },
   users: [{ type: String }],
-  traffic: { type: String, enum: ["small", "medium", "large"], required: true },
-  budget: { type: String, enum: ["low", "medium", "high"], required: true },
-  team_size: { type: Number, required: true },
+  traffic: { type: String },
+  budget: { type: String },
+  team_size: { type: Number },
   must_have_features: [{ type: String }],
   priorities: [{ type: String }]
 }, { _id: false });
