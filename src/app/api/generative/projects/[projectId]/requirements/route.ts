@@ -1,7 +1,7 @@
 // app/api/generative/projects/[projectId]/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
-import { DraftProject, AuditLog } from "@/lib/backend/models/DraftProject";
+import { DraftProject } from "@/lib/backend/models/DraftProject";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
 
 // 🎯 MASTER PLAN: Phase 1 API - Save structured requirements
@@ -45,15 +45,6 @@ export async function PATCH(
     project.updated_at = new Date();
     await project.save();
 
-    // Audit log
-    await AuditLog.create({
-      project_id: projectId,
-      action: "requirements_saved",
-      by: user.id,
-      metadata: { requirements },
-      timestamp: new Date()
-    });
-
     return NextResponse.json({
       success: true,
       phase: project.current_phase
@@ -66,3 +57,4 @@ export async function PATCH(
     );
   }
 }
+
