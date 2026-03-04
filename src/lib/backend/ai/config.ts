@@ -1,12 +1,12 @@
 /**
  * AI PROVIDER CONFIGURATION
  * 
- * Purpose: Centralized configuration for AI provider settings
- * Controls mock vs real AI behavior with environment variables
+ * Centralized configuration for AI provider settings.
+ * Controls mock vs real AI behavior with environment variables.
  * 
  * Usage:
- * - Development: USE_REAL_AI=false (default, no API key needed)
- * - Production: USE_REAL_AI=true (requires OPENAI_API_KEY)
+ * - Development: USE_REAL_AI=false (default, uses mocks)
+ * - Production:  USE_REAL_AI=true  (requires OPENAI_API_KEY)
  */
 
 export const AI_CONFIG = {
@@ -14,7 +14,7 @@ export const AI_CONFIG = {
    * Feature flag: Controls mock vs real AI
    * 
    * false = Use mock (deterministic, offline, free)
-   * true = Use real AI (requires API key, costs money, internet)
+   * true  = Use real AI (requires API key)
    * 
    * Set via environment variable: USE_REAL_AI=true
    */
@@ -24,7 +24,7 @@ export const AI_CONFIG = {
    * OpenAI API configuration
    */
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
-  OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4o-mini", // Stable, production-ready model
+  OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4.1",
   OPENAI_API_URL: "https://api.openai.com/v1/chat/completions",
 
   /**
@@ -33,10 +33,9 @@ export const AI_CONFIG = {
    * Temperature: 0.3 for structured output
    * - Architecture decisions must be deterministic
    * - Lower temp = less hallucination, better contract compliance
-   * - 0.2-0.4 ideal for JSON contracts
    */
   MAX_TOKENS: 4000,
-  TEMPERATURE: 0.3, // Low for structured, predictable, contract-safe output
+  TEMPERATURE: 0.3,
   REQUEST_TIMEOUT: 30000, // 30 seconds
 };
 
