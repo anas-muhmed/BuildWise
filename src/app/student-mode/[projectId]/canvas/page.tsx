@@ -175,14 +175,13 @@ export default function CanvasPage() {
           <div className="w-16 h-16 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
           <div className="text-lg text-zinc-400">Rendering your architecture...</div>
         </div>
+      </div>
+    );
+  }
+
   const activeNode = graph.nodes.find((n: any) => n.id === activeNodeId);
   const nodeExplanation = activeNode ? explainNode(activeNode) : null;
   const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
-  const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
-
-  const teamSize = 3; // TODO: replace with real team state later
-  const constraintsEnabled = !!constraintError; // Constraints active if error present
-  const costEstimate = estimateCost(graph, teamSize, constraintsEnabled);
 
   return (
     <div className="min-h-screen bg-black text-white flex">
