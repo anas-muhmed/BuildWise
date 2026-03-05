@@ -1,73 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DashboardLayoutWrapper from "@/components/DashboardLayoutWrapper";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
-  ArrowLeft, ArrowRight, CheckCircle2, RefreshCw, Layers,
-  Monitor, Server, Database, Cloud, ChevronDown, ChevronUp, Sparkles
+  ArrowLeft, ArrowRight, CheckCircle2, Layers, Box, GitBranch,
+  ChevronDown, ChevronUp, Sparkles, Edit3, Info
 } from "lucide-react";
 
-// ── Technology alternatives for each layer ─────────────────────────────────
+// ── Technology alternatives for swapping ────────────────────────────────────
 
-interface TechAlt {
-  name: string;
-  description: string;
-  pros: string[];
-  fit: "great" | "good" | "okay";
-}
-
-const ALTERNATIVES: Record<string, TechAlt[]> = {
-  frontend: [
-    { name: "Next.js + Tailwind CSS", description: "Full-stack React framework with built-in SSR, routing, and API routes", pros: ["SSR/SSG", "File routing", "Edge functions"], fit: "great" },
-    { name: "React + Vite + Tailwind", description: "Lightweight SPA with blazing fast dev server", pros: ["Fast builds", "Full control", "Lightweight"], fit: "great" },
-    { name: "Vue 3 + Nuxt", description: "Progressive framework with great DX and SSR", pros: ["Easy to learn", "Composition API", "SSR built-in"], fit: "good" },
-    { name: "Angular + Material UI", description: "Enterprise-grade framework with opinionated structure", pros: ["TypeScript native", "Enterprise patterns", "CLI tools"], fit: "good" },
-    { name: "Svelte + SvelteKit", description: "Compile-time framework, zero runtime overhead", pros: ["Smallest bundle", "No virtual DOM", "Fast"], fit: "okay" },
-  ],
-  backend: [
-    { name: "Next.js API Routes + Prisma", description: "Serverless functions co-located with frontend", pros: ["Zero config", "Type-safe DB", "Serverless"], fit: "great" },
-    { name: "Node.js + Express + TypeScript", description: "Industry standard, huge ecosystem", pros: ["Battle-tested", "Easy hiring", "Flexible"], fit: "great" },
-    { name: "Python + FastAPI", description: "Modern Python async framework with auto-docs", pros: ["Auto OpenAPI", "Async native", "ML-ready"], fit: "good" },
-    { name: "Go + Gin", description: "High-performance compiled language", pros: ["Fastest runtime", "Low memory", "Concurrency"], fit: "good" },
-    { name: "Java + Spring Boot", description: "Enterprise-grade with massive ecosystem", pros: ["Enterprise standard", "JVM ecosystem", "Microservices"], fit: "okay" },
-  ],
-  database: [
-    { name: "PostgreSQL (Supabase)", description: "Managed Postgres with auth, realtime & storage", pros: ["Managed", "Built-in auth", "Realtime"], fit: "great" },
-    { name: "PostgreSQL + Redis", description: "Relational DB with in-memory cache", pros: ["ACID compliance", "Complex queries", "Caching"], fit: "great" },
-    { name: "MongoDB Atlas + Redis", description: "Flexible document DB with caching layer", pros: ["Schema-less", "Horizontal scaling", "JSON native"], fit: "good" },
-    { name: "MySQL + Memcached", description: "Classic relational DB with mature caching", pros: ["Widely supported", "Proven at scale", "Simple"], fit: "good" },
-    { name: "DynamoDB + ElastiCache", description: "AWS native serverless NoSQL", pros: ["Serverless", "Auto-scaling", "AWS integrated"], fit: "okay" },
-  ],
-  hosting: [
-    { name: "Vercel", description: "Zero-config deployment with edge network", pros: ["Auto HTTPS", "Edge CDN", "Git deploy"], fit: "great" },
-    { name: "AWS (ECS Fargate)", description: "Scalable containers without managing servers", pros: ["Auto-scaling", "No server mgmt", "AWS ecosystem"], fit: "great" },
-    { name: "Railway", description: "Modern PaaS — deploy from GitHub in seconds", pros: ["Simple pricing", "Git deploy", "Managed DBs"], fit: "good" },
-    { name: "DigitalOcean App Platform", description: "Developer-friendly cloud at fair prices", pros: ["Predictable pricing", "Simple UI", "Good docs"], fit: "good" },
-    { name: "Kubernetes (EKS/GKE)", description: "Full orchestration for large-scale apps", pros: ["Max control", "Self-healing", "Multi-cloud"], fit: "okay" },
-  ]
+const TECH_ALTERNATIVES: Record<string, string[]> = {
+  frontend: ["Next.js 14 + TypeScript", "React + Vite + Zustand", "Vue 3 + Nuxt", "Angular + Material UI", "Svelte + SvelteKit", "Next.js (Static Export) + CloudFront"],
+  backend: ["Next.js API Routes", "Node.js + Express", "Node.js + Express + JWT", "Python + FastAPI", "Go + Gin", "AWS Lambda + API Gateway", "Java + Spring Boot"],
+  database: ["MongoDB Atlas", "PostgreSQL", "MongoDB", "MySQL", "DynamoDB", "Supabase", "PlanetScale"],
+  auth: ["NextAuth.js + JWT", "AWS Cognito + DynamoDB", "Firebase Auth", "Auth0", "Clerk", "Custom JWT"],
+  payments: ["Stripe SDK", "Node.js + Stripe", "Lambda + Stripe Webhooks", "PayPal SDK", "Razorpay"],
+  realtime: ["Socket.io", "Node.js + Socket.io + Redis Pub/Sub", "AWS AppSync / API Gateway WebSocket", "Pusher", "Ably"],
+  deployment: ["Vercel", "Docker + Railway", "AWS CDK (Infrastructure as Code)", "DigitalOcean App Platform", "Kubernetes (EKS/GKE)", "Render"],
+  cache: ["Redis", "Memcached", "DynamoDB DAX", "Cloudflare KV"],
 };
 
-const LAYER_ICONS: Record<string, React.ReactNode> = {
-  frontend: <Monitor className="w-5 h-5 text-blue-400" />,
-  backend: <Server className="w-5 h-5 text-purple-400" />,
-  database: <Database className="w-5 h-5 text-emerald-400" />,
-  hosting: <Cloud className="w-5 h-5 text-amber-400" />,
-};
-
-const LAYER_COLORS: Record<string, { bg: string; border: string; accent: string }> = {
-  frontend: { bg: "bg-blue-500/10", border: "border-blue-500/30", accent: "text-blue-400" },
-  backend: { bg: "bg-purple-500/10", border: "border-purple-500/30", accent: "text-purple-400" },
-  database: { bg: "bg-emerald-500/10", border: "border-emerald-500/30", accent: "text-emerald-400" },
-  hosting: { bg: "bg-amber-500/10", border: "border-amber-500/30", accent: "text-amber-400" },
-};
-
-const FIT_LABELS: Record<string, { bg: string; text: string; label: string }> = {
-  great: { bg: "bg-green-500/20", text: "text-green-400", label: "Best Fit" },
-  good: { bg: "bg-blue-500/20", text: "text-blue-400", label: "Good Fit" },
-  okay: { bg: "bg-zinc-700/50", text: "text-zinc-400", label: "Viable" },
-};
+// ── Builder Page ───────────────────────────────────────────────────────────
 
 export default function BuilderPage() {
   const params = useParams();
@@ -76,9 +31,12 @@ export default function BuilderPage() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
 
   const [proposal, setProposal] = useState<any>(null);
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [decisions, setDecisions] = useState<any[]>([]);
+  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [editingDecision, setEditingDecision] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [changeCount, setChangeCount] = useState(0);
 
   // Load the selected proposal
   useEffect(() => {
@@ -86,77 +44,53 @@ export default function BuilderPage() {
     if (stored) {
       const parsed = JSON.parse(stored);
       setProposal(parsed);
-      // Initialize selections from proposal
-      setSelections({
-        frontend: parsed.layers.frontend.tech,
-        backend: parsed.layers.backend.tech,
-        database: parsed.layers.database.tech,
-        hosting: parsed.layers.hosting.tech,
-      });
+      setModules(parsed.modules || []);
+      setDecisions(parsed.decisions || []);
     }
   }, [projectId]);
-
-  // Count changes from original proposal
-  const changeCount = useMemo(() => {
-    if (!proposal) return 0;
-    let count = 0;
-    if (selections.frontend !== proposal.layers.frontend.tech) count++;
-    if (selections.backend !== proposal.layers.backend.tech) count++;
-    if (selections.database !== proposal.layers.database.tech) count++;
-    if (selections.hosting !== proposal.layers.hosting.tech) count++;
-    return count;
-  }, [selections, proposal]);
 
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
   if (!isAuthenticated) return null;
 
   if (!proposal) {
     return (
-      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Customize Stack">
+      <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Customize Architecture">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-zinc-400 mb-4">No proposal selected. Pick an architecture first.</p>
-            <button onClick={() => router.push(`/generative-ai/${projectId}/proposal`)} className="px-4 py-2 bg-purple-600 text-white rounded-lg cursor-pointer">
-              Go to Proposals
-            </button>
+            <button onClick={() => router.push(`/generative-ai/${projectId}/proposal`)} className="px-4 py-2 bg-purple-600 text-white rounded-lg cursor-pointer">Go to Proposals</button>
           </div>
         </div>
       </DashboardLayoutWrapper>
     );
   }
 
-  const handleSwap = (layer: string, tech: string) => {
-    setSelections(prev => ({ ...prev, [layer]: tech }));
-    setExpandedLayer(null);
+  const swapDecisionTech = (decIdx: number, newTech: string) => {
+    const updated = [...decisions];
+    updated[decIdx] = { ...updated[decIdx], choice: newTech };
+    setDecisions(updated);
+    setEditingDecision(null);
+    setChangeCount(prev => prev + 1);
   };
 
-  const handleFinalize = async () => {
+  const handleFinalize = () => {
     setIsSaving(true);
-    // Save final stack to localStorage for finalize page
-    const finalStack = {
+    const finalData = {
       ...proposal,
-      layers: {
-        frontend: { tech: selections.frontend, reason: ALTERNATIVES.frontend.find(a => a.name === selections.frontend)?.description || "" },
-        backend: { tech: selections.backend, reason: ALTERNATIVES.backend.find(a => a.name === selections.backend)?.description || "" },
-        database: { tech: selections.database, reason: ALTERNATIVES.database.find(a => a.name === selections.database)?.description || "" },
-        hosting: { tech: selections.hosting, reason: ALTERNATIVES.hosting.find(a => a.name === selections.hosting)?.description || "" },
-        extras: proposal.layers.extras,
-      },
-      customized: true,
+      modules,
+      decisions,
+      customized: changeCount > 0,
       changesFromOriginal: changeCount,
     };
-    localStorage.setItem(`finalstack-${projectId}`, JSON.stringify(finalStack));
-
-    // Redirect to finalize
+    localStorage.setItem(`finalstack-${projectId}`, JSON.stringify(finalData));
     setTimeout(() => {
       router.push(`/generative-ai/${projectId}/finalize`);
-    }, 800);
+    }, 600);
   };
 
   return (
-    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Customize Stack">
+    <DashboardLayoutWrapper activeNav="recent" breadcrumb="AI Architecture Builder > Customize Architecture">
       <div className="space-y-6">
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -169,131 +103,192 @@ export default function BuilderPage() {
             <div>
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
                 <Layers className="w-5 h-5 text-purple-400" />
-                Customize Your Stack
+                Customize Architecture
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
-                Starting from <span className="text-purple-400 font-medium">{proposal.name}</span> — swap any layer below
+                Starting from <span className="text-purple-400 font-medium">{proposal.name}</span> ({proposal.approach}) — edit modules and swap technologies
               </p>
             </div>
           </div>
-
-          {/* Changes indicator */}
           {changeCount > 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30">
-              <RefreshCw className="w-3 h-3 text-purple-400" />
-              <span className="text-xs text-purple-300 font-medium">{changeCount} layer{changeCount > 1 ? "s" : ""} customized</span>
+              <Edit3 className="w-3 h-3 text-purple-400" />
+              <span className="text-xs text-purple-300 font-medium">{changeCount} change{changeCount > 1 ? "s" : ""}</span>
             </div>
           )}
         </div>
 
-        {/* Layer Cards */}
-        <div className="space-y-4">
-          {(["frontend", "backend", "database", "hosting"] as const).map((layer) => {
-            const isExpanded = expandedLayer === layer;
-            const currentTech = selections[layer];
-            const colors = LAYER_COLORS[layer];
-            const isChanged = currentTech !== proposal.layers[layer].tech;
-            const currentAlt = ALTERNATIVES[layer].find(a => a.name === currentTech);
-
-            return (
-              <div key={layer} className={`rounded-2xl border transition-all duration-300 ${isExpanded ? `${colors.border} ${colors.bg}` : "border-zinc-800 bg-zinc-900/50"}`}>
-                {/* Layer Header */}
-                <button
-                  onClick={() => setExpandedLayer(isExpanded ? null : layer)}
-                  className="w-full flex items-center justify-between p-5 cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    {LAYER_ICONS[layer]}
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold uppercase tracking-wider text-zinc-400">{layer}</span>
-                        {isChanged && (
-                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-500/20 text-purple-300 font-semibold">CUSTOMIZED</span>
-                        )}
+        {/* System Modules */}
+        <div>
+          <h2 className="text-sm font-bold text-zinc-300 mb-3 flex items-center gap-2">
+            <Box className="w-4 h-4 text-purple-400" /> System Modules ({modules.length})
+          </h2>
+          <div className="space-y-3">
+            {modules.map((mod, idx) => {
+              const isExpanded = expandedModule === mod.name;
+              return (
+                <div key={idx} className={`rounded-2xl border transition-all duration-200 ${isExpanded ? "border-purple-500/40 bg-purple-500/5" : "border-zinc-800 bg-zinc-900/50"}`}>
+                  <button
+                    onClick={() => setExpandedModule(isExpanded ? null : mod.name)}
+                    className="w-full flex items-center justify-between p-5 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
+                        <Box className="w-5 h-5 text-purple-400" />
                       </div>
-                      <p className="text-white font-semibold text-base mt-0.5">{currentTech}</p>
-                      {currentAlt && <p className="text-xs text-zinc-500 mt-0.5">{currentAlt.description}</p>}
+                      <div className="text-left">
+                        <h3 className="text-white font-semibold text-sm">{mod.name}</h3>
+                        <p className="text-xs text-zinc-500 mt-0.5">{mod.responsibility}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-600">Swap</span>
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
-                  </div>
-                </button>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 font-medium">{mod.tech}</span>
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+                    </div>
+                  </button>
 
-                {/* Alternatives Panel */}
-                {isExpanded && (
-                  <div className="px-5 pb-5 pt-0">
-                    <div className="border-t border-zinc-800/50 pt-4 space-y-2">
-                      {ALTERNATIVES[layer].map((alt) => {
-                        const isActive = currentTech === alt.name;
-                        const fitStyle = FIT_LABELS[alt.fit];
-                        return (
-                          <button
-                            key={alt.name}
-                            onClick={() => handleSwap(layer, alt.name)}
-                            className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer
-                              ${isActive
-                                ? `${colors.border} ${colors.bg} ring-1 ring-current`
-                                : "border-zinc-700/50 bg-zinc-800/30 hover:border-zinc-600 hover:bg-zinc-800/50"
-                              }`}
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2">
-                                {isActive && <CheckCircle2 className={`w-4 h-4 ${colors.accent}`} />}
-                                <span className={`font-semibold text-sm ${isActive ? "text-white" : "text-zinc-300"}`}>{alt.name}</span>
-                              </div>
-                              <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold ${fitStyle.bg} ${fitStyle.text}`}>
-                                {fitStyle.label}
-                              </span>
-                            </div>
-                            <p className="text-xs text-zinc-500 mb-2">{alt.description}</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {alt.pros.map((pro, i) => (
-                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-700/50 text-zinc-400">{pro}</span>
-                              ))}
-                            </div>
-                          </button>
-                        );
-                      })}
+                  {isExpanded && (
+                    <div className="px-5 pb-5 pt-0">
+                      <div className="border-t border-zinc-800/50 pt-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">Technology</span>
+                            <p className="text-sm text-white font-medium mt-1">{mod.tech}</p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">Dependencies</span>
+                            <p className="text-sm text-zinc-300 mt-1">
+                              {mod.depends_on.length > 0 ? mod.depends_on.join(" → ") : "None (independent)"}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">Responsibility</span>
+                          <p className="text-sm text-zinc-400 mt-1 leading-relaxed">{mod.responsibility}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Live Architecture Summary */}
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            Your Architecture
+        {/* Architecture Decisions */}
+        <div>
+          <h2 className="text-sm font-bold text-zinc-300 mb-3 flex items-center gap-2">
+            <GitBranch className="w-4 h-4 text-blue-400" /> Technology Decisions ({decisions.length})
+            <span className="text-[10px] text-zinc-600 font-normal ml-1">Click to swap technologies</span>
           </h2>
-          <div className="flex items-center gap-3 overflow-x-auto pb-2">
-            {(["frontend", "backend", "database", "hosting"] as const).map((layer, i) => (
-              <React.Fragment key={layer}>
-                <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border shrink-0 ${LAYER_COLORS[layer].bg} ${LAYER_COLORS[layer].border}`}>
-                  {LAYER_ICONS[layer]}
-                  <div>
-                    <div className="text-[10px] text-zinc-500 uppercase">{layer}</div>
-                    <div className="text-xs font-semibold text-white whitespace-nowrap">{selections[layer]?.split(" + ")[0]}</div>
-                  </div>
+          <div className="space-y-3">
+            {decisions.map((dec, idx) => {
+              const isEditing = editingDecision === idx;
+              const category = dec.category?.toLowerCase() || "other";
+              const alts = TECH_ALTERNATIVES[category] || [];
+
+              return (
+                <div key={idx} className={`rounded-2xl border transition-all duration-200 ${isEditing ? "border-blue-500/40 bg-blue-500/5" : "border-zinc-800 bg-zinc-900/50"}`}>
+                  <button
+                    onClick={() => setEditingDecision(isEditing ? null : idx)}
+                    className="w-full flex items-center justify-between p-5 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-left">
+                        <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">{dec.category}</span>
+                        <h3 className="text-white font-semibold text-sm mt-0.5">{dec.choice}</h3>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${dec.confidence === "high" ? "text-green-400 bg-green-500/10" :
+                          dec.confidence === "medium" ? "text-blue-400 bg-blue-500/10" :
+                            "text-amber-400 bg-amber-500/10"
+                        }`}>{dec.confidence}</span>
+                      <Edit3 className="w-3.5 h-3.5 text-zinc-600" />
+                    </div>
+                  </button>
+
+                  {isEditing && (
+                    <div className="px-5 pb-5 pt-0">
+                      <div className="border-t border-zinc-800/50 pt-4 space-y-3">
+                        {/* Reasoning */}
+                        <div className="flex items-start gap-2 p-3 bg-zinc-800/30 rounded-lg">
+                          <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                          <p className="text-xs text-zinc-400 leading-relaxed">{dec.reasoning}</p>
+                        </div>
+
+                        {/* Swap Options */}
+                        {alts.length > 0 && (
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-semibold block mb-2">Swap to:</span>
+                            <div className="flex flex-wrap gap-2">
+                              {alts.map((alt) => {
+                                const isCurrent = alt === dec.choice;
+                                return (
+                                  <button
+                                    key={alt}
+                                    onClick={() => !isCurrent && swapDecisionTech(idx, alt)}
+                                    className={`px-3 py-1.5 text-xs rounded-lg border transition-all cursor-pointer
+                                      ${isCurrent
+                                        ? "bg-purple-500/20 border-purple-500/40 text-purple-300 font-semibold"
+                                        : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:text-white hover:border-zinc-600"
+                                      }`}
+                                  >
+                                    {isCurrent && <CheckCircle2 className="w-3 h-3 inline mr-1" />}
+                                    {alt}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {dec.alternatives?.length > 0 && (
+                          <p className="text-[10px] text-zinc-600">AI also considered: {dec.alternatives.join(", ")}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {i < 3 && <ArrowRight className="w-4 h-4 text-zinc-600 shrink-0" />}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Architecture Summary Bar */}
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-purple-400" /> Architecture Summary
+          </h2>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-3 text-center">
+              <div className="text-lg font-bold text-white">{modules.length}</div>
+              <div className="text-[10px] text-zinc-500">Modules</div>
+            </div>
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-3 text-center">
+              <div className="text-lg font-bold text-white">{decisions.length}</div>
+              <div className="text-[10px] text-zinc-500">Decisions</div>
+            </div>
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-3 text-center">
+              <div className={`text-lg font-bold ${proposal.complexity === "Low" ? "text-green-400" : proposal.complexity === "Medium" ? "text-blue-400" : "text-amber-400"}`}>
+                {proposal.complexity}
+              </div>
+              <div className="text-[10px] text-zinc-500">Complexity</div>
+            </div>
+          </div>
+
+          {/* Module flow visualization */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {modules.map((mod, i) => (
+              <React.Fragment key={mod.name}>
+                <div className="shrink-0 px-3 py-2 rounded-lg bg-zinc-800/60 border border-zinc-700/50">
+                  <div className="text-[10px] text-zinc-500">{mod.name.split(" ")[0]}</div>
+                  <div className="text-[10px] font-medium text-zinc-300 whitespace-nowrap">{mod.tech.split(" ")[0]}</div>
+                </div>
+                {i < modules.length - 1 && <ArrowRight className="w-3 h-3 text-zinc-700 shrink-0" />}
               </React.Fragment>
             ))}
           </div>
-
-          {/* Extras */}
-          {proposal.layers.extras?.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-zinc-800">
-              <span className="text-xs text-zinc-500 mr-2">+ Services:</span>
-              {proposal.layers.extras.map((extra: string, i: number) => (
-                <span key={i} className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-zinc-800/60 border border-zinc-700/50 text-zinc-400 mr-1.5 mb-1">{extra}</span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Finalize Button */}
@@ -306,12 +301,12 @@ export default function BuilderPage() {
             {isSaving ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Finalizing...
+                Generating ADR...
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-5 h-5" />
-                Finalize Architecture
+                Generate Architecture Decision Record
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

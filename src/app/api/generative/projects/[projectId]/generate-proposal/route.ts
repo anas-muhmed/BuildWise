@@ -1,129 +1,202 @@
-/**
- * PROPOSAL GENERATION API
- * 
- * Pipeline: Requirements → Context Builder → Prompt → OpenAI → Validate → Response
- * Safety: If AI fails at any step, falls back to mock proposals.
- * 
- * This is the core AI integration point for Pro Mode.
- */
-
+// app/api/generative/projects/[projectId]/generate-proposal/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/backend/mongodb";
 import { DraftProject } from "@/lib/backend/models/DraftProject";
 import { getAuthUser } from "@/lib/backend/authMiddleware";
-import { AI_CONFIG, validateAIConfig } from "@/lib/backend/ai/config";
 import { callOpenAI } from "@/lib/backend/ai/openaiProvider";
-import { buildGenerativeAIContext, renderGenerativeContextAsText } from "@/lib/backend/ai/context/generativeAIContextBuilder";
+import { AI_CONFIG } from "@/lib/backend/ai/config";
+import { buildGenerativeAIContext } from "@/lib/backend/ai/context/generativeAIContextBuilder";
 
-// ── Prompt for 3-option proposal generation ────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────
 
-const PROPOSAL_SYSTEM_PROMPT = `You are a senior software architect. Based on project requirements, you must propose exactly 3 architecture options with different trade-off profiles.
+interface ArchModule {
+  name: string;
+  responsibility: string;
+  tech: string;
+  depends_on: string[];
+}
 
-You MUST return a JSON object with this exact structure:
+interface ArchDecision {
+  category: string;
+  choice: string;
+  reasoning: string;
+  alternatives: string[];
+  confidence: "high" | "medium" | "low";
+}
 
+interface ArchProposal {
+  id: string;
+  approach: string;
+  name: string;
+  tagline: string;
+  modules: ArchModule[];
+  decisions: ArchDecision[];
+  assumptions: string[];
+  pros: string[];
+  cons: string[];
+  estimatedCost: string;
+  complexity: "Low" | "Medium" | "High";
+  timeToShip: string;
+}
+
+// ── System Prompt ──────────────────────────────────────────────────────────
+
+const ARCHITECTURE_SYSTEM_PROMPT = `You are a senior software architect. You design production-ready system architectures.
+
+TASK: Generate exactly 3 architecturally DIFFERENT proposals for the given project.
+
+Each proposal must use a DIFFERENT architectural approach:
+1. "monolith" — single deployable unit, simple, fast to build
+2. "service-oriented" — modular backend with independently deployable services
+3. "event-driven" — serverless/cloud-native with message queues and auto-scaling
+
+For each proposal, provide:
+- A creative name and tagline
+- System modules (4-8 modules) with name, responsibility, technology choice, and dependencies
+- Key architectural decisions with reasoning and alternatives considered
+- Assumptions about scope
+- Pros and cons of this approach
+- Estimated monthly cost range, complexity level, and time to ship
+
+OUTPUT FORMAT — Return ONLY this JSON:
 {
-  "options": [
+  "proposals": [
     {
-      "id": "speed",
-      "name": "string (creative name like 'The Speed Machine')",
-      "tagline": "string (short catchy subtitle)",
-      "layers": {
-        "frontend": { "tech": "string", "reason": "string (why this fits)" },
-        "backend": { "tech": "string", "reason": "string" },
-        "database": { "tech": "string", "reason": "string" },
-        "hosting": { "tech": "string", "reason": "string" },
-        "extras": ["string (additional services like Stripe, Redis, etc)"]
-      },
-      "pros": ["string", "string", "string", "string"],
-      "cons": ["string", "string", "string"],
-      "monthlyCost": "string (e.g. '$25-$100')",
+      "id": "monolith",
+      "approach": "Monolith",
+      "name": "string — creative name like 'The Rapid Builder'",
+      "tagline": "string — one-line description",
+      "modules": [
+        {
+          "name": "string — e.g. 'User Service'",
+          "responsibility": "string — what this module does",
+          "tech": "string — technology used",
+          "depends_on": ["string — names of other modules"]
+        }
+      ],
+      "decisions": [
+        {
+          "category": "frontend | backend | database | auth | payments | realtime | cache | deployment",
+          "choice": "string",
+          "reasoning": "string — WHY this choice for THIS approach",
+          "alternatives": ["string"],
+          "confidence": "high | medium | low"
+        }
+      ],
+      "assumptions": ["string"],
+      "pros": ["string — 3-4 advantages"],
+      "cons": ["string — 2-3 trade-offs"],
+      "estimatedCost": "string — e.g. '$0-25/mo'",
       "complexity": "Low | Medium | High",
-      "timeToShip": "string (e.g. '2-4 weeks')",
-      "bestFor": "string (who should use this)"
+      "timeToShip": "string — e.g. '2-4 weeks'"
     }
   ]
 }
 
-RULES:
-1. Option 1 (id: "speed"): Optimized for fastest development and lowest cost. Use managed services. Simple stack.
-2. Option 2 (id: "balanced"): Production-ready, scalable. Standard industry stack. Good for growing teams.
-3. Option 3 (id: "enterprise"): Enterprise-grade. Microservices if needed. Full observability. For large-scale apps.
-4. Each option must use DIFFERENT technologies for at least 2 layers.
-5. Costs must be realistic for the given budget and traffic level.
-6. Pros/cons must be honest trade-offs, not marketing.
-7. Extras should include relevant services based on required features (e.g. Stripe for payments, Socket.io for realtime).
-8. Return ONLY valid JSON. No markdown, no explanations outside JSON.`;
+CRITICAL RULES:
+1. Each proposal MUST have a different architectural approach
+2. Modules must reference real technologies, not generic placeholders
+3. Every decision must say WHY, not just WHAT
+4. depends_on values must exactly match module names within the same proposal
+5. Return ONLY valid JSON, no markdown, no code fences, no explanations
+6. Module count: 4-8 per proposal
+7. Decision count: 4-8 per proposal`;
 
-// ── Mock fallback (matches AI output format) ───────────────────────────────
+// ── Mock Proposals (fallback) ──────────────────────────────────────────────
 
-function getMockProposals(requirements: any) {
-  const traffic = requirements?.traffic || "small";
-  const budget = requirements?.budget || "low";
-  const features = requirements?.must_have_features || [];
-  const hasRealtime = features.some((f: string) => f.toLowerCase().includes("real-time") || f.toLowerCase().includes("chat"));
-  const hasPayments = features.some((f: string) => f.toLowerCase().includes("payment"));
+function getMockProposals(requirements: any): ArchProposal[] {
+  const integrations = requirements?.integrations || requirements?.must_have_features || [];
+  const hasAuth = integrations.some((f: string) => f.toLowerCase().includes("auth"));
+  const hasPayments = integrations.some((f: string) => f.toLowerCase().includes("payment"));
+  const hasRealtime = integrations.some((f: string) => f.toLowerCase().includes("realtime") || f.toLowerCase().includes("real-time") || f.toLowerCase().includes("websocket"));
 
-  return {
-    options: [
-      {
-        id: "speed",
-        name: "The Speed Machine",
-        tagline: "Ship fast, iterate faster",
-        layers: {
-          frontend: { tech: "Next.js + Tailwind CSS", reason: "Full-stack framework with built-in API routes, SSR, and ISR. Ship fast." },
-          backend: { tech: "Next.js API Routes + Prisma", reason: "Zero config backend. Prisma makes DB queries type-safe." },
-          database: { tech: "PostgreSQL (Supabase)", reason: "Managed Postgres with built-in auth, realtime, and storage." },
-          hosting: { tech: "Vercel", reason: "Zero-config deployment, edge functions, automatic HTTPS." },
-          extras: [hasPayments ? "Stripe" : null, hasRealtime ? "Supabase Realtime" : null, "Resend for emails"].filter(Boolean)
-        },
-        pros: ["Fastest time to market", "Minimal infrastructure management", "Great developer experience", "Everything in one framework"],
-        cons: ["Vendor lock-in to Vercel", "Limited server-side control", "Can get expensive at scale"],
-        monthlyCost: budget === "low" ? "$0–$25" : "$25–$100",
-        complexity: "Low",
-        timeToShip: "2–4 weeks",
-        bestFor: "MVPs, startups, solo developers"
-      },
-      {
-        id: "balanced",
-        name: "The Balanced Stack",
-        tagline: "Production-ready from day one",
-        layers: {
-          frontend: { tech: "React + Vite + Tailwind", reason: "Lightweight SPA with fast builds and full control." },
-          backend: { tech: "Node.js + Express + TypeScript", reason: "Battle-tested stack, mature ecosystem, easy to hire." },
-          database: { tech: traffic === "large" ? "PostgreSQL + Redis" : "MongoDB Atlas + Redis", reason: traffic === "large" ? "Relational DB for complex queries + Redis caching." : "Flexible schema for rapid iteration + Redis sessions." },
-          hosting: { tech: "AWS (ECS Fargate)", reason: "Scalable containers without managing servers." },
-          extras: [hasPayments ? "Stripe" : null, hasRealtime ? "Socket.io" : null, "JWT auth", "Docker", "GitHub Actions CI/CD"].filter(Boolean)
-        },
-        pros: ["Production-grade from start", "Scales to 100K+ users", "No vendor lock-in", "Easy to hire developers"],
-        cons: ["More initial setup time", "Need to manage infrastructure", "Higher learning curve"],
-        monthlyCost: budget === "low" ? "$15–$50" : "$50–$200",
-        complexity: "Medium",
-        timeToShip: "4–8 weeks",
-        bestFor: "Growing startups, professional projects"
-      },
-      {
-        id: "enterprise",
-        name: "The Enterprise Beast",
-        tagline: "Built for millions of users",
-        layers: {
-          frontend: { tech: "Next.js + React Query + Zustand", reason: "SSR for SEO, React Query for server state, Zustand for client." },
-          backend: { tech: "Microservices (Node.js + Go)", reason: "Service isolation. Node for API gateway, Go for high-throughput." },
-          database: { tech: "PostgreSQL + MongoDB + Redis + ElasticSearch", reason: "Polyglot persistence — right DB for each job." },
-          hosting: { tech: "Kubernetes (AWS EKS)", reason: "Full orchestration, auto-scaling, self-healing containers." },
-          extras: [hasPayments ? "Stripe + fraud detection" : null, hasRealtime ? "Kafka + WebSocket gateway" : null, "OAuth 2.0 + RBAC", "Prometheus + Grafana", "Terraform IaC"].filter(Boolean)
-        },
-        pros: ["Handles millions of concurrent users", "Independent service scaling", "Full observability", "Enterprise-grade security"],
-        cons: ["Complex infrastructure", "Requires DevOps expertise", "High monthly costs", "Over-engineered for small apps"],
-        monthlyCost: "$200–$2000+",
-        complexity: "High",
-        timeToShip: "3–6 months",
-        bestFor: "Enterprise apps, high-traffic platforms"
-      }
-    ]
-  };
+  return [
+    {
+      id: "monolith",
+      approach: "Monolith",
+      name: "The Rapid Builder",
+      tagline: "Ship fast with a single deployable unit",
+      modules: [
+        { name: "Web Application", responsibility: "Serves UI and handles all HTTP routes in a single Next.js app", tech: "Next.js 14 + TypeScript", depends_on: [] },
+        { name: "API Layer", responsibility: "RESTful endpoints via Next.js API routes, handles all business logic", tech: "Next.js API Routes", depends_on: ["Web Application"] },
+        { name: "Database", responsibility: "Single database storing all application data with flexible schema", tech: "MongoDB Atlas", depends_on: [] },
+        ...(hasAuth ? [{ name: "Auth Module", responsibility: "User registration, login, session management with JWT", tech: "NextAuth.js + JWT", depends_on: ["Database"] }] : []),
+        ...(hasPayments ? [{ name: "Payment Module", responsibility: "Handles checkout, subscriptions, and payment processing", tech: "Stripe SDK", depends_on: ["API Layer", "Database"] }] : []),
+        ...(hasRealtime ? [{ name: "Realtime Module", responsibility: "WebSocket connections for live updates and notifications", tech: "Socket.io", depends_on: ["API Layer"] }] : []),
+      ],
+      decisions: [
+        { category: "frontend", choice: "Next.js 14 + Tailwind CSS", reasoning: "Full-stack framework eliminates the need for a separate backend. SSR gives SEO benefits. Tailwind accelerates UI development.", alternatives: ["React + Vite", "Vue + Nuxt"], confidence: "high" as const },
+        { category: "backend", choice: "Next.js API Routes", reasoning: "Co-located with frontend, zero deployment complexity. Perfect for monolith approach where all code lives together.", alternatives: ["Express.js", "FastAPI"], confidence: "high" as const },
+        { category: "database", choice: "MongoDB Atlas", reasoning: "Flexible schema handles rapid iteration. Managed service eliminates DevOps overhead. Free tier for MVPs.", alternatives: ["PostgreSQL", "Supabase"], confidence: "medium" as const },
+        { category: "deployment", choice: "Vercel", reasoning: "Zero-config deployment for Next.js. Auto HTTPS, CDN, and preview deployments. Generous free tier.", alternatives: ["Railway", "Render"], confidence: "high" as const },
+      ],
+      assumptions: ["Team size is 1-3 developers", "No need for independent service scaling initially", "Traffic will grow gradually"],
+      pros: ["Fastest time to market", "Single codebase to maintain", "Zero DevOps overhead", "Low initial cost"],
+      cons: ["Harder to scale individual components", "All-or-nothing deployments", "Can become monolithic spaghetti over time"],
+      estimatedCost: "$0–25/mo",
+      complexity: "Low",
+      timeToShip: "2–4 weeks",
+    },
+    {
+      id: "service-oriented",
+      approach: "Service-Oriented",
+      name: "The Balanced Engine",
+      tagline: "Modular services that scale independently",
+      modules: [
+        { name: "Frontend App", responsibility: "React SPA with client-side routing and state management", tech: "React + Vite + Zustand", depends_on: ["API Gateway"] },
+        { name: "API Gateway", responsibility: "Central entry point routing requests to appropriate backend services", tech: "Node.js + Express", depends_on: [] },
+        { name: "User Service", responsibility: "User management, authentication, profile operations", tech: "Node.js + Express + JWT", depends_on: ["User Database"] },
+        { name: "User Database", responsibility: "Stores user data, credentials, and sessions", tech: "PostgreSQL", depends_on: [] },
+        { name: "Core Service", responsibility: "Main business logic — orders, listings, content management", tech: "Node.js + Express", depends_on: ["Core Database"] },
+        { name: "Core Database", responsibility: "Stores application data — products, orders, content", tech: "MongoDB", depends_on: [] },
+        ...(hasPayments ? [{ name: "Payment Service", responsibility: "Isolated payment processing with PCI compliance considerations", tech: "Node.js + Stripe", depends_on: ["Core Service"] }] : []),
+        ...(hasRealtime ? [{ name: "Realtime Service", responsibility: "WebSocket server for live updates, chat, and notifications", tech: "Node.js + Socket.io + Redis Pub/Sub", depends_on: ["API Gateway"] }] : []),
+      ],
+      decisions: [
+        { category: "frontend", choice: "React + Vite + Zustand", reasoning: "Decoupled from backend. Vite gives fast dev experience. Zustand for lightweight state without Redux boilerplate.", alternatives: ["Next.js", "Angular"], confidence: "high" as const },
+        { category: "backend", choice: "Node.js + Express microservices", reasoning: "Each service owns its domain. Independent deployment and scaling. Express is battle-tested for service architectures.", alternatives: ["FastAPI (Python)", "Go + Gin"], confidence: "high" as const },
+        { category: "database", choice: "PostgreSQL + MongoDB (polyglot)", reasoning: "PostgreSQL for relational user data (ACID). MongoDB for flexible content data. Right database for each job.", alternatives: ["Single PostgreSQL", "DynamoDB"], confidence: "medium" as const },
+        { category: "deployment", choice: "Docker + Railway", reasoning: "Containers ensure consistency. Railway simplifies multi-service deployment without Kubernetes complexity.", alternatives: ["AWS ECS", "DigitalOcean"], confidence: "medium" as const },
+      ],
+      assumptions: ["Team of 3-5 developers", "Services communicate via REST initially", "Each service has its own database"],
+      pros: ["Independent service scaling", "Team can work on services in parallel", "Right technology for each component", "Clean separation of concerns"],
+      cons: ["More complex deployment", "Network latency between services", "Requires service discovery and monitoring"],
+      estimatedCost: "$25–100/mo",
+      complexity: "Medium",
+      timeToShip: "4–8 weeks",
+    },
+    {
+      id: "event-driven",
+      approach: "Event-Driven",
+      name: "The Cloud Native",
+      tagline: "Serverless and auto-scaling from day one",
+      modules: [
+        { name: "Frontend CDN", responsibility: "Static SPA served globally via CDN with edge caching", tech: "Next.js (Static Export) + CloudFront", depends_on: [] },
+        { name: "API Functions", responsibility: "Serverless functions handling all API requests, auto-scaling to zero", tech: "AWS Lambda + API Gateway", depends_on: ["Event Bus"] },
+        { name: "Event Bus", responsibility: "Asynchronous message broker connecting all services via events", tech: "Amazon EventBridge", depends_on: [] },
+        { name: "User Store", responsibility: "User identity, auth, and profile data with managed auth", tech: "AWS Cognito + DynamoDB", depends_on: [] },
+        { name: "Data Store", responsibility: "Core application data with auto-scaling and global replication", tech: "DynamoDB", depends_on: [] },
+        { name: "Worker Functions", responsibility: "Background processors for emails, notifications, data transforms", tech: "AWS Lambda (triggered by events)", depends_on: ["Event Bus", "Data Store"] },
+        ...(hasPayments ? [{ name: "Payment Processor", responsibility: "Event-driven payment flow with webhook handling", tech: "Lambda + Stripe Webhooks", depends_on: ["Event Bus", "Data Store"] }] : []),
+        ...(hasRealtime ? [{ name: "Realtime Gateway", responsibility: "Managed WebSocket connections for live updates", tech: "AWS AppSync / API Gateway WebSocket", depends_on: ["Event Bus"] }] : []),
+      ],
+      decisions: [
+        { category: "frontend", choice: "Next.js Static Export + CloudFront", reasoning: "Pre-rendered pages served from CDN edge. Near-zero server cost. Global performance.", alternatives: ["Vercel", "Netlify"], confidence: "high" as const },
+        { category: "backend", choice: "AWS Lambda (Serverless)", reasoning: "Pay-per-invocation model. Auto-scales to zero when idle, to millions when needed. No servers to manage.", alternatives: ["Cloud Functions", "Cloudflare Workers"], confidence: "high" as const },
+        { category: "database", choice: "DynamoDB", reasoning: "Serverless database that matches the serverless compute model. Single-digit millisecond latency at any scale.", alternatives: ["Aurora Serverless", "PlanetScale"], confidence: "medium" as const },
+        { category: "deployment", choice: "AWS CDK (Infrastructure as Code)", reasoning: "Entire architecture defined in code. Reproducible, version-controlled infrastructure.", alternatives: ["Terraform", "Serverless Framework"], confidence: "medium" as const },
+      ],
+      assumptions: ["Team comfortable with AWS ecosystem", "Traffic is unpredictable/bursty", "Cost optimization is important at rest"],
+      pros: ["Scales to millions automatically", "Pay only for what you use", "Zero server management", "Built-in fault tolerance"],
+      cons: ["Cold start latency", "Vendor lock-in to AWS", "Complex debugging and monitoring", "Steep learning curve"],
+      estimatedCost: "$5–200/mo (usage-based)",
+      complexity: "High",
+      timeToShip: "6–10 weeks",
+    },
+  ];
 }
 
-// ── API Route ──────────────────────────────────────────────────────────────
+// ── POST Handler ───────────────────────────────────────────────────────────
 
 export async function POST(
   req: NextRequest,
@@ -149,72 +222,110 @@ export async function POST(
     }
 
     const requirements = project.requirements || {};
-    let proposals;
+    let proposals: ArchProposal[];
     let source: "ai" | "mock" = "mock";
 
-    // ── Try real AI ──
-    if (AI_CONFIG.USE_REAL_AI) {
-      const configCheck = validateAIConfig();
-      
-      if (configCheck.valid) {
-        try {
-          // Build context from requirements
-          const context = buildGenerativeAIContext({
-            description: project.starter_prompt || project.title || "web application",
-            requirements: {
-              users: requirements.users,
-              traffic: requirements.traffic,
-              budget: requirements.budget,
-              must_have_features: requirements.must_have_features,
-              priorities: requirements.priorities,
-            },
-          });
+    // Try real AI if enabled
+    if (AI_CONFIG.USE_REAL_AI && AI_CONFIG.OPENAI_API_KEY) {
+      try {
+        console.log("[generate-proposal] Using real AI (GPT-4.1)");
 
-          const contextText = renderGenerativeContextAsText(context);
+        // Build context from requirements
+        const context = buildGenerativeAIContext({
+          description: project.starter_prompt || project.title,
+          requirements: {
+            users: requirements.users,
+            traffic: requirements.traffic,
+            budget: requirements.budget,
+            team_size: requirements.team_size,
+            must_have_features: requirements.must_have_features,
+            priorities: requirements.priorities,
+          },
+        });
 
-          // Call OpenAI
-          const result = await callOpenAI(PROPOSAL_SYSTEM_PROMPT, contextText);
-          
-          // Parse JSON
-          const parsed = JSON.parse(result.content);
+        // Build the user message with full context
+        const userMessage = `PROJECT CONTEXT:
+${context.systemBrief}
 
-          // Basic validation: must have options array with 3 items
-          if (parsed.options && Array.isArray(parsed.options) && parsed.options.length >= 3) {
-            proposals = parsed;
-            source = "ai";
-            console.log(`[AI] Generated proposals for ${projectId} (${result.tokens} tokens)`);
-          } else {
-            console.warn("[AI] Invalid structure, falling back to mock");
-          }
-        } catch (aiError) {
-          console.error("[AI] Failed, falling back to mock:", aiError);
-          // Fall through to mock
+CONSTRAINTS:
+${context.constraints.map((c: string) => `- ${c}`).join("\n")}
+
+PRIORITIES:
+${context.priorities.map((p: string) => `- ${p}`).join("\n")}
+
+Required integrations: ${(requirements.integrations || requirements.must_have_features || []).join(", ")}
+Scale: ${requirements.scale || requirements.traffic || "medium"}
+Top priority: ${requirements.priority || "balanced"}
+
+Generate 3 architecturally different proposals now.`;
+
+        const aiResponse = await callOpenAI({
+          systemPrompt: ARCHITECTURE_SYSTEM_PROMPT,
+          userMessage,
+          temperature: 0.7,
+          maxTokens: 4000,
+        });
+
+        // Parse and validate
+        const parsed = JSON.parse(aiResponse);
+        if (parsed.proposals && Array.isArray(parsed.proposals) && parsed.proposals.length >= 3) {
+          // Ensure each proposal has required fields
+          proposals = parsed.proposals.slice(0, 3).map((p: any, idx: number) => ({
+            id: p.id || ["monolith", "service-oriented", "event-driven"][idx],
+            approach: p.approach || ["Monolith", "Service-Oriented", "Event-Driven"][idx],
+            name: p.name || `Proposal ${idx + 1}`,
+            tagline: p.tagline || "",
+            modules: (p.modules || []).map((m: any) => ({
+              name: m.name || "Unknown Module",
+              responsibility: m.responsibility || "",
+              tech: m.tech || "",
+              depends_on: m.depends_on || [],
+            })),
+            decisions: (p.decisions || []).map((d: any) => ({
+              category: d.category || "other",
+              choice: d.choice || "",
+              reasoning: d.reasoning || "",
+              alternatives: d.alternatives || [],
+              confidence: d.confidence || "medium",
+            })),
+            assumptions: p.assumptions || [],
+            pros: p.pros || [],
+            cons: p.cons || [],
+            estimatedCost: p.estimatedCost || p.estimated_cost || "$?",
+            complexity: p.complexity || "Medium",
+            timeToShip: p.timeToShip || p.time_to_ship || "?",
+          }));
+          source = "ai";
+          console.log("[generate-proposal] AI generated successfully");
+        } else {
+          throw new Error("AI response missing proposals array");
         }
-      } else {
-        console.warn("[AI] Config invalid:", configCheck.errors);
+      } catch (aiError) {
+        console.error("[generate-proposal] AI failed, falling back to mock:", aiError);
+        proposals = getMockProposals(requirements);
+        source = "mock";
       }
-    }
-
-    // ── Fallback to mock ──
-    if (!proposals) {
+    } else {
+      console.log("[generate-proposal] Using mock data (USE_REAL_AI is false)");
       proposals = getMockProposals(requirements);
-      console.log(`[Mock] Using mock proposals for ${projectId}`);
     }
 
     // Update project phase
-    project.current_phase = 2;
-    project.updated_at = new Date();
-    await project.save();
+    await DraftProject.updateOne(
+      { _id: projectId },
+      { $set: { current_phase: 2, updated_at: new Date() } }
+    );
 
     return NextResponse.json({
-      ok: true,
+      proposals,
       source,
-      ...proposals,
+      projectId,
     });
+
   } catch (error) {
-    console.error("[generate-proposal]", error);
+    console.error("[generate-proposal] Fatal error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to generate proposals" },
       { status: 500 }
     );
   }
