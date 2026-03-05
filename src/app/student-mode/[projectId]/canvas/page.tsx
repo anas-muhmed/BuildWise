@@ -465,21 +465,27 @@ export default function CanvasPage() {
 
             if (!from || !to) return null;
 
-            const x1 = from.x + 224; // node width
-            const y1 = from.y + 40;
-            const x2 = to.x;
-            const y2 = to.y + 40;
+            // Node dimensions: w-40 = 160px width, approximate height ~70px
+            const nodeWidth = 160;
+            const nodeHeight = 70;
+            
+            const x1 = from.x + nodeWidth; // Right edge of source node
+            const y1 = from.y + nodeHeight / 2; // Vertical center of source
+            const x2 = to.x; // Left edge of target node
+            const y2 = to.y + nodeHeight / 2; // Vertical center of target
+
+            // Create smooth curved path
+            const midX = (x1 + x2) / 2;
+            const pathData = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
 
             return (
-              <line
+              <path
                 key={i}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
+                d={pathData}
                 stroke="#6366f1"
                 strokeWidth="2"
-                strokeOpacity="0.7"
+                strokeOpacity="0.6"
+                fill="none"
                 markerEnd="url(#arrow)"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -487,7 +493,7 @@ export default function CanvasPage() {
                   setActiveNodeId(null);
                   setConstraintError(null);
                 }}
-                className="cursor-pointer hover:stroke-indigo-400"
+                className="cursor-pointer hover:stroke-indigo-400 transition-colors"
                 style={{ pointerEvents: 'stroke' }}
               />
             );
@@ -504,10 +510,18 @@ export default function CanvasPage() {
               // Node type color mapping
               const nodeColors = {
                 frontend: { border: "border-blue-500", bg: "from-blue-500/20 to-blue-600/10", glow: "shadow-blue-500/50", text: "text-blue-400" },
+                "web-frontend": { border: "border-blue-500", bg: "from-blue-500/20 to-blue-600/10", glow: "shadow-blue-500/50", text: "text-blue-400" },
+                "mobile-app": { border: "border-blue-400", bg: "from-blue-400/20 to-blue-500/10", glow: "shadow-blue-400/50", text: "text-blue-300" },
                 backend: { border: "border-purple-500", bg: "from-purple-500/20 to-purple-600/10", glow: "shadow-purple-500/50", text: "text-purple-400" },
+                "api-server": { border: "border-purple-500", bg: "from-purple-500/20 to-purple-600/10", glow: "shadow-purple-500/50", text: "text-purple-400" },
+                "auth-service": { border: "border-purple-400", bg: "from-purple-400/20 to-purple-500/10", glow: "shadow-purple-400/50", text: "text-purple-300" },
                 database: { border: "border-green-500", bg: "from-green-500/20 to-green-600/10", glow: "shadow-green-500/50", text: "text-green-400" },
+                "primary-db": { border: "border-green-500", bg: "from-green-500/20 to-green-600/10", glow: "shadow-green-500/50", text: "text-green-400" },
                 cache: { border: "border-orange-500", bg: "from-orange-500/20 to-orange-600/10", glow: "shadow-orange-500/50", text: "text-orange-400" },
                 queue: { border: "border-yellow-500", bg: "from-yellow-500/20 to-yellow-600/10", glow: "shadow-yellow-500/50", text: "text-yellow-400" },
+                "message-queue": { border: "border-yellow-500", bg: "from-yellow-500/20 to-yellow-600/10", glow: "shadow-yellow-500/50", text: "text-yellow-400" },
+                "load-balancer": { border: "border-amber-500", bg: "from-amber-500/20 to-amber-600/10", glow: "shadow-amber-500/50", text: "text-amber-400" },
+                "api-gateway": { border: "border-amber-500", bg: "from-amber-500/20 to-amber-600/10", glow: "shadow-amber-500/50", text: "text-amber-400" },
               };
 
               const colors = nodeColors[node.type as keyof typeof nodeColors] || nodeColors.backend;
@@ -528,31 +542,31 @@ export default function CanvasPage() {
                     pointerEvents: 'auto'
                   }}
                   className={`
-                    w-64 rounded-2xl cursor-pointer transition-all duration-300
+                    w-40 rounded-xl cursor-pointer transition-all duration-300
                     bg-gradient-to-br ${colors.bg} border-2 ${colors.border}
-                    shadow-xl ${colors.glow}
+                    shadow-lg ${colors.glow}
                     ${isActive ? 'scale-105 ring-4 ring-purple-500/50' : 'hover:scale-105'}
                   `}
                 >
-                  <div className="p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${colors.text}`}>
-                        {node.type}
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${colors.text}`}>
+                        {node.type.replace("-", " ").slice(0, 12)}
                       </div>
                       {isActive && (
-                        <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                        <div className="w-1.5 h-1.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
                       )}
                     </div>
-                    <div className="font-semibold text-lg text-white mb-1">{node.label}</div>
+                    <div className="font-semibold text-sm text-white mb-0.5 truncate">{node.label}</div>
                     {isViolated && (
-                      <div className="flex items-center gap-2 text-red-400 text-sm mt-3 p-2 bg-red-500/10 rounded-lg border border-red-500/30">
-                        <span className="text-lg">⚠</span>
-                        <span>Constraint violated</span>
+                      <div className="flex items-center gap-1 text-red-400 text-[10px] mt-2 p-1.5 bg-red-500/10 rounded border border-red-500/30">
+                        <span className="text-xs">⚠</span>
+                        <span>Violated</span>
                       </div>
                     )}
                   </div>
                   {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl -z-10"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl blur-lg -z-10"></div>
                   )}
                 </div>
               );
