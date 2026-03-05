@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import AIStatusBadge from "./AIStatusBadge";
 
 const DECISIONS = [
   { id: "ADD_CACHE", label: "Cache", icon: "🗄️" },
@@ -184,13 +185,41 @@ export default function DecisionPanel({
 
       {lastResult && (
         <div className="bg-indigo-950 border border-indigo-700 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-indigo-400 font-semibold">Impact</span>
-            <span className={`text-sm ${lastResult.scoreDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {lastResult.scoreDelta > 0 ? '+' : ''}{lastResult.scoreDelta} points
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-indigo-400 font-semibold">Impact</span>
+              <span className={`text-sm ${lastResult.scoreDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {lastResult.scoreDelta > 0 ? '+' : ''}{lastResult.scoreDelta} points
+              </span>
+            </div>
+            <AIStatusBadge source={lastResult.source} />
           </div>
           <p className="text-xs text-zinc-300">{lastResult.explanation}</p>
+          {lastResult.tip && (
+            <div className="mt-3 pt-3 border-t border-indigo-800/50">
+              <div className="text-xs text-indigo-300">💡 Tip: {lastResult.tip}</div>
+            </div>
+          )}
+          {lastResult.tradeoffs && (
+            <div className="mt-3 pt-3 border-t border-indigo-800/50 space-y-2">
+              <div>
+                <div className="text-xs font-semibold text-green-300 mb-1">Benefits:</div>
+                <ul className="text-xs text-zinc-300 space-y-1">
+                  {lastResult.tradeoffs.benefits.map((b: string, i: number) => (
+                    <li key={i}>✓ {b}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-red-300 mb-1">Costs:</div>
+                <ul className="text-xs text-zinc-300 space-y-1">
+                  {lastResult.tradeoffs.costs.map((c: string, i: number) => (
+                    <li key={i}>⚠ {c}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
