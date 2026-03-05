@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import AIStatusBadge from "../student-mode/AIStatusBadge";
 
 interface Node {
   id: string;
@@ -14,6 +15,7 @@ interface InsightsPanelProps {
   nodeCount: number;
   edgeCount: number;
   nodes: Node[];
+  source?: "ai" | "mock";
 }
 
 export default function InsightsPanel({
@@ -23,6 +25,7 @@ export default function InsightsPanel({
   nodeCount,
   edgeCount,
   nodes,
+  source,
 }: InsightsPanelProps) {
   const tabs = [
     { id: "overview", label: "Overview" },
@@ -47,6 +50,9 @@ export default function InsightsPanel({
             {tab.label}
           </button>
         ))}
+        <div className="px-4 py-3 flex items-center">
+          <AIStatusBadge source={source} />
+        </div>
       </div>
 
       {/* Content */}

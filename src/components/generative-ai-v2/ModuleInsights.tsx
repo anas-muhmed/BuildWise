@@ -4,6 +4,7 @@ import React, { useCallback, useState } from "react";
 import { CheckCircle, Edit, HelpCircle, XCircle, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
 import { Button } from "@/components/ui/button";
+import AIStatusBadge from "../student-mode/AIStatusBadge";
 
 /**
  * ModuleInsights
@@ -170,11 +171,14 @@ export default function ModuleInsights({ projectId, module, snapshot, mock = fal
   return (
     <aside className="h-full p-5 bg-zinc-900/60 backdrop-blur-sm border-l border-zinc-800/30 overflow-auto">
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{module?.name || "Module"}</h3>
+        <div className="flex-1">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <h3 className="text-lg font-semibold text-white">{module?.name || "Module"}</h3>
+            <AIStatusBadge source={source} />
+          </div>
           <p className="text-xs text-zinc-400 mt-1">Step {module?.order || "?"} — review details</p>
         </div>
-        <div className="text-right">
+        <div className="text-right ml-3">
           <div className={clsx("px-3 py-1 rounded-full text-xs font-medium", confidenceColor(module?.ai_feedback?.confidence))}>
             {module?.ai_feedback?.confidence || "unknown"}
           </div>
