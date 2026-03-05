@@ -24,7 +24,7 @@ export const AI_CONFIG = {
    * OpenAI API configuration
    */
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
-  OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4.1",
+  OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4-turbo",
   OPENAI_API_URL: "https://api.openai.com/v1/chat/completions",
 
   /**
