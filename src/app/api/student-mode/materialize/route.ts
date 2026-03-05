@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { reasoningStore, architectureStore, projectDefinitionStore } from "@/lib/student-mode/store";
 import { getStudentModeArchitectureMock } from "@/lib/backend/ai/mocks/studentModeArchitecture.mock";
 import { buildStudentModeContext, renderContextAsText } from "@/lib/backend/ai/context/studentModeContextBuilder";
+import { buildStudentModeArchitecturePrompt } from "@/lib/backend/ai/prompts/studentModeArchitecture.prompt";
+import { AI_CONFIG } from "@/lib/backend/ai/config";
+import { callOpenAI } from "@/lib/backend/ai/openaiProvider";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +27,6 @@ export async function POST(req: NextRequest) {
 
     if (!definition) {
       console.log(`No definition found for ${projectId}, using defaults`);
-      // Use defaults for testing without full flow
       const defaultDefinition = {
         name: "Test Project",
         goal: "Test application for architecture generation",
@@ -49,10 +51,13 @@ export async function POST(req: NextRequest) {
         architecture: architecture,
       });
 
-      return NextResponse.json(mockResponse);
+      return NextResponse.json({
+        ...mockResponse,
+        source: "mock",
+      });
     }
 
-    // Build AI context from student inputs (English, not raw data)
+    // Build AI context from student inputs
     const aiContext = buildStudentModeContext({
       definition: {
         name: definition.name,
@@ -62,24 +67,56 @@ export async function POST(req: NextRequest) {
       reasoning: reasoning.answers,
     });
 
-    // Log context for validation (master's checkpoint)
+    // Log context for validation
     console.log("=== AI CONTEXT (Student Mode) ===");
     console.log(renderContextAsText(aiContext));
     console.log("=================================");
 
-    // Use contract-valid mock (later: pass aiContext to real AI)
+    if (AI_CONFIG.USE_REAL_AI) {
+      try {
+        console.log("[student-materialize] Using real AI for architecture generation");
+        
+        const prompt = buildStudentModeArchitecturePrompt(aiContext);
+        const systemPrompt = "You are an expert software architect helping students design their first production systems. Generate clean, educational architectures.";
+        
+        const aiResult = await callOpenAI(systemPrompt, prompt);
+        const aiResponse = JSON.parse(aiResult.content);
+        
+        const architecture = aiResponse.architecture;
+
+        // Store as BASE architecture with empty decisions
+        architectureStore.set(projectId, {
+          baseArchitecture: architecture,
+          activeDecisions: [],
+          architecture: architecture,
+        });
+
+        console.log("[student-materialize] Real AI architecture generated successfully");
+        
+        return NextResponse.json({
+          ...aiResponse,
+          source: "ai",
+        });
+      } catch (error) {
+        console.error("[student-materialize] AI failed, using fallback:", error);
+        // Fall through to mock
+      }
+    }
+
+    console.log("[student-materialize] Using mock architecture");
     const mockResponse = getStudentModeArchitectureMock();
     const architecture = mockResponse.architecture;
 
-    // Store as BASE architecture with empty decisions
     architectureStore.set(projectId, {
       baseArchitecture: architecture,
       activeDecisions: [],
-      architecture: architecture, // initially same as base
+      architecture: architecture,
     });
 
-    // Return full contract (architecture + reasoning)
-    return NextResponse.json(mockResponse);
+    return NextResponse.json({
+      ...mockResponse,
+      source: "mock",
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { architectureStore } from "@/lib/student-mode/store";
+import { architectureStore, projectDefinitionStore } from "@/lib/student-mode/store";
 import { ExecutionBlueprint } from "@/lib/student-mode/execution-types";
+import { AI_CONFIG } from "@/lib/backend/ai/config";
+import { callOpenAI } from "@/lib/backend/ai/openaiProvider";
+import { buildExecutionPlanPrompt } from "@/lib/backend/ai/prompts/executionPlan.prompt";
 
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
@@ -19,6 +22,46 @@ export async function GET(req: NextRequest) {
   }
 
   const architecture = state.architecture;
+
+  if (AI_CONFIG.USE_REAL_AI) {
+    try {
+      console.log("[student-execution] Using real AI for execution plan");
+      
+      const projectDef = projectDefinitionStore.get(projectId);
+      const projectContext = projectDef 
+        ? `Project: ${projectDef.name}\nGoal: ${projectDef.goal}\nAudience: ${projectDef.audience}`
+        : "Student architecture project";
+      
+      const archDesc = `Components:\n${architecture.nodes.map(n => `- ${n.type}: ${n.label}`).join('\n')}\n\nTotal components: ${architecture.nodes.length}`;
+      
+      const prompt = buildExecutionPlanPrompt({
+        projectContext,
+        architecture: archDesc,
+      });
+
+      const systemPrompt = "You are an experienced technical lead creating implementation plans for development teams.";
+      
+      const aiResult = await callOpenAI(systemPrompt, prompt);
+      const aiPlan = JSON.parse(aiResult.content);
+      
+      console.log("[student-execution] Real AI execution plan generated");
+      
+      const blueprint: ExecutionBlueprint = {
+        projectId,
+        ...aiPlan,
+      };
+      
+      return NextResponse.json({
+        ...blueprint,
+        source: "ai",
+      });
+    } catch (error) {
+      console.error("[student-execution] AI failed, using fallback:", error);
+      // Fall through to mock
+    }
+  }
+
+  console.log("[student-execution] Using mock execution plan");
 
   const components = architecture.nodes.map((node: { label: string; type: string }) => ({
     name: node.label,
@@ -77,7 +120,10 @@ export async function GET(req: NextRequest) {
     ],
   };
 
-  return NextResponse.json(blueprint);
+  return NextResponse.json({
+    ...blueprint,
+    source: "mock",
+  });
 }
 
 const responsibilityMap: Record<string, string[]> = {
