@@ -137,45 +137,69 @@ export default function CanvasPage() {
       // Save to architectureStore so cost endpoint can access it
       architectureStore.set(projectId, { nodes, edges });
     } else {
-      // Fallback: AI-generated architecture OR default
-      console.log("[Canvas] No student build, trying AI architecture...");
+      // Fallback: AI-generated architecture
+      console.log("[Canvas] No student build, generating AI architecture...");
+      setAiLoading(true);
+      setAiProgress(20);
       
-      // ALWAYS show default immediately to prevent blank canvas
-      const defaultArch = {
-        nodes: [
-          { id: "web-frontend", label: "Web Frontend", type: "frontend" },
-          { id: "api-server", label: "API Server", type: "backend" },
-          { id: "primary-db", label: "Database", type: "database" },
-        ],
-        edges: [
-          { from: "web-frontend", to: "api-server", label: "HTTPS" },
-          { from: "api-server", to: "primary-db", label: "read/write" },
-        ],
-      };
-      const defaultCanvas = projectToCanvas(defaultArch);
-      setGraph(defaultCanvas);
-      // Save default to architectureStore
-      architectureStore.set(projectId, defaultArch);
-      
-      // Then try to load AI arch in background
-      fetch(`/api/student-mode/materialize?projectId=${projectId}`)
-        .then(res => res.json())
+      // Call POST to trigger AI architecture generation
+      fetch(`/api/student-mode/materialize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId })
+      })
+        .then(res => {
+          setAiProgress(60);
+          return res.json();
+        })
         .then(response => {
-          console.log("[Canvas] Materialize API response:", response);
+          console.log("[Canvas] AI Materialize response:", response);
+          setAiProgress(80);
+          
           const data = response.architecture || response;
           if (data?.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
-            console.log("[Canvas] Replacing default with AI architecture");
+            console.log("[Canvas] AI generated architecture with", data.nodes.length, "nodes");
             const aiCanvas = projectToCanvas(data);
             setGraph(aiCanvas);
-            // Save AI arch to store
             architectureStore.set(projectId, data);
           } else {
-            console.warn("[Canvas] AI returned invalid architecture, keeping default");
+            console.warn("[Canvas] AI returned invalid architecture, using fallback");
+            // Fallback to default 3-node architecture
+            const defaultArch = {
+              nodes: [
+                { id: "web-frontend", label: "Web Frontend", type: "frontend" },
+                { id: "api-server", label: "API Server", type: "backend" },
+                { id: "primary-db", label: "Database", type: "database" },
+              ],
+              edges: [
+                { from: "web-frontend", to: "api-server", label: "HTTPS" },
+                { from: "api-server", to: "primary-db", label: "read/write" },
+              ],
+            };
+            const defaultCanvas = projectToCanvas(defaultArch);
+            setGraph(defaultCanvas);
+            architectureStore.set(projectId, defaultArch);
           }
+          setAiProgress(100);
         })
         .catch(err => {
-          console.error("[Canvas] Failed to load AI architecture:", err);
-          console.log("[Canvas] Keeping default architecture");
+          console.error("[Canvas] Failed to generate AI architecture:", err);
+          setAiProgress(100);
+          // Fallback to default architecture on error
+          const defaultArch = {
+            nodes: [
+              { id: "web-frontend", label: "Web Frontend", type: "frontend" },
+              { id: "api-server", label: "API Server", type: "backend" },
+              { id: "primary-db", label: "Database", type: "database" },
+            ],
+            edges: [
+              { from: "web-frontend", to: "api-server", label: "HTTPS" },
+              { from: "api-server", to: "primary-db", label: "read/write" },
+            ],
+          };
+          const defaultCanvas = projectToCanvas(defaultArch);
+          setGraph(defaultCanvas);
+          architectureStore.set(projectId, defaultArch);
         });
     }
   }, [projectId]);

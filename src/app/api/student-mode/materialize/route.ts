@@ -135,17 +135,60 @@ export async function GET(req: NextRequest) {
 
   const state = architectureStore.get(projectId);
 
-  // If no state found, return mock data for testing
+  // If no state found, generate AI architecture
   if (!state) {
-    console.log(`No state found for ${projectId}, returning mock data`);
+    console.log(`[student-materialize GET] No state found for ${projectId}, generating with AI...`);
+    
+    const reasoning = reasoningStore.get(projectId);
+    const definition = projectDefinitionStore.get(projectId);
+    
+    // Build AI context
+    const aiContext = buildStudentModeContext({
+      definition: definition || {
+        name: "Student Project",
+        goal: "Build a scalable web application",
+        audience: "General users",
+      },
+      reasoning: reasoning?.answers || {},
+    });
+    
+    if (AI_CONFIG.USE_REAL_AI) {
+      try {
+        console.log("[student-materialize GET] Using real AI");
+        const prompt = buildStudentModeArchitecturePrompt(aiContext);
+        const systemPrompt = "You are an expert software architect helping students design production systems. Generate complete, realistic architectures.";
+        
+        const aiResult = await callOpenAI(systemPrompt, prompt);
+        const aiResponse = JSON.parse(aiResult.content);
+        
+        // Cache the generated architecture
+        architectureStore.set(projectId, {
+          baseArchitecture: aiResponse.architecture,
+          activeDecisions: [],
+          architecture: aiResponse.architecture,
+        });
+        
+        return NextResponse.json({
+          architecture: aiResponse.architecture,
+          reasoning: aiResponse.reasoning,
+          source: "ai",
+        });
+      } catch (error) {
+        console.error("[student-materialize GET] AI failed:", error);
+      }
+    }
+    
+    // Fallback to mock
+    console.log("[student-materialize GET] Using mock");
     const mockResponse = getStudentModeArchitectureMock();
     return NextResponse.json({
       architecture: mockResponse.architecture,
-      reasoning: mockResponse.reasoning
+      reasoning: mockResponse.reasoning,
+      source: "mock",
     });
   }
 
-  // Return full contract (architecture + reasoning)
+  // Return cached architecture
   const mockResponse = getStudentModeArchitectureMock();
   return NextResponse.json({
     architecture: state.architecture || state.baseArchitecture || state,
