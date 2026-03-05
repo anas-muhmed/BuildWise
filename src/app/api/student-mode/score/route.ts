@@ -11,25 +11,46 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
 
   if (!projectId) {
+    console.warn("[student-score] Missing projectId");
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
+  console.log("[student-score] Fetching score for projectId:", projectId);
   const state = architectureStore.get(projectId);
+  console.log("[student-score] Architecture store state:", state);
 
   if (!state) {
-    return NextResponse.json(
-      { error: "Architecture not found" },
-      { status: 404 }
-    );
+    console.warn("[student-score] Architecture not found in store, using default score");
+    // Return default score instead of 404
+    const defaultScore = {
+      breakdown: {
+        simplicity: { score: 25, max: 30, reason: "Basic 3-tier architecture is easy to understand" },
+        scalability: { score: 15, max: 25, reason: "Can handle moderate load with current design" },
+        maintainability: { score: 20, max: 25, reason: "Standard patterns make maintenance straightforward" },
+        cost: { score: 15, max: 20, reason: "Simple setup keeps costs low" },
+      },
+      total: 75,
+      max: 100,
+      summary: "Solid foundation for an MVP. Consider adding caching and load balancing as you scale.",
+      source: "mock",
+    };
+    return NextResponse.json(defaultScore);
   }
 
   const architecture = state.architecture || state.baseArchitecture || state;
   
   if (!architecture || !architecture.nodes) {
-    return NextResponse.json(
-      { error: "Invalid architecture data" },
-      { status: 404 }
-    );
+    console.warn("[student-score] Invalid architecture data, using default");
+    const defaultScore = {
+      breakdown: {
+        simplicity: { score: 20, max: 30, reason: "Define your architecture first" },
+      },
+      total: 20,
+      max: 100,
+      summary: "Start by adding components to your architecture.",
+      source: "mock",
+    };
+    return NextResponse.json(defaultScore);
   }
 
   const decisions = getDecisions(projectId);

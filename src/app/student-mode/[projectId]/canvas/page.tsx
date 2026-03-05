@@ -345,7 +345,7 @@ export default function CanvasPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* CANVAS */}
         <div
-          className="relative overflow-hidden h-full bg-gradient-to-br from-black via-zinc-950 to-black flex-1"
+          className="relative h-full bg-gradient-to-br from-black via-zinc-950 to-black flex-1"
           onClick={() => {
             setActiveNodeId(null);
             setSelectedEdge(null);
