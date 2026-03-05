@@ -246,12 +246,25 @@ export default function CanvasPage() {
         checkComplete();
       });
     
-    // Cost - wait for graph to load first
+    // Cost - wait for graph to load AND be saved to store
     const attemptCost = () => {
       if (!graph) {
+        console.log("[Canvas] Waiting for graph before fetching cost...");
         setTimeout(attemptCost, 500);
         return;
       }
+      
+      // Double-check architecture is in store
+      const storeCheck = architectureStore.get(projectId);
+      if (!storeCheck) {
+        console.log("[Canvas] Architecture not in store yet, saving now...");
+        architectureStore.set(projectId, { 
+          nodes: graph.nodes, 
+          edges: graph.edges 
+        });
+      }
+      
+      console.log("[Canvas] Fetching cost estimate...");
       fetch(`/api/student-mode/cost?projectId=${projectId}`)
         .then(res => res.json())
         .then(data => {
@@ -260,6 +273,7 @@ export default function CanvasPage() {
             setCostEstimate(data);
           } else {
             console.warn("[Canvas] Cost returned error:", data.error);
+            setCostEstimate(data); // Still set it so we show something
           }
           checkComplete();
         })

@@ -10,25 +10,46 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
 
   if (!projectId) {
+    console.warn("[student-cost] Missing projectId");
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
+  console.log("[student-cost] Fetching cost for projectId:", projectId);
   const state = architectureStore.get(projectId);
+  console.log("[student-cost] Architecture store state:", state);
 
   if (!state) {
-    return NextResponse.json(
-      { error: "Architecture not found" },
-      { status: 404 }
-    );
+    console.warn("[student-cost] Architecture not found in store, using default estimates");
+    // Return default estimate instead of 404
+    const defaultEstimate = {
+      infraLevel: "Small",
+      monthlyCostUSD: 50,
+      engineeringEffort: "1-2 developers, 2-4 weeks",
+      operationalRisk: "Low - simple architecture with standard components",
+      explanation: [
+        "Basic 3-tier architecture (Frontend + API + Database)",
+        "Suitable for MVP or small-scale deployment",
+        "Can be hosted on Vercel/Railway/Heroku free tiers initially",
+        "Database can use managed services like Supabase or PlanetScale",
+      ],
+      source: "mock",
+    };
+    return NextResponse.json(defaultEstimate);
   }
 
   const architecture = state.architecture || state.baseArchitecture || state;
   
   if (!architecture || !architecture.nodes) {
-    return NextResponse.json(
-      { error: "Invalid architecture data" },
-      { status: 404 }
-    );
+    console.warn("[student-cost] Invalid architecture data, using default");
+    const defaultEstimate = {
+      infraLevel: "Small",
+      monthlyCostUSD: 50,
+      engineeringEffort: "1-2 developers, 2-4 weeks",
+      operationalRisk: "Low",
+      explanation: ["Basic architecture - minimal cost"],
+      source: "mock",
+    };
+    return NextResponse.json(defaultEstimate);
   }
   const context = getProjectContext(projectId);
 
