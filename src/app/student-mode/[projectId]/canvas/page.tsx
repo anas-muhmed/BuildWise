@@ -167,13 +167,13 @@ export default function CanvasPage() {
       .catch(() => setSuggestions(null));
   }, [projectId, decisions, score]);
 
-  useEffect(data => {
-        console.log("[Canvas] Cost response:", data);
-        setCostEstimate(data);
-      }
+  useEffect(() => {
     fetch(`/api/student-mode/cost?projectId=${projectId}`)
       .then(res => res.json())
-      .then(setCostEstimate)
+      .then(data => {
+        console.log("[Canvas] Cost response:", data);
+        setCostEstimate(data);
+      })
       .catch(() => setCostEstimate(null));
   }, [projectId, graph]);
 
