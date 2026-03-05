@@ -3,7 +3,9 @@
 import { CostEstimate } from "@/lib/student-mode/cost-estimator";
 import AIStatusBadge from "./AIStatusBadge";
 
-export default function CostPanel({ estimate, source }: { estimate: CostEstimate; source?: "ai" | "mock" }) {
+export default function CostPanel({ estimate, source }: { estimate?: CostEstimate; source?: "ai" | "mock" }) {
+  if (!estimate) return null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -35,11 +37,13 @@ export default function CostPanel({ estimate, source }: { estimate: CostEstimate
         </div>
       </div>
 
-      <div className="border-t border-zinc-800 pt-3 space-y-2 text-xs text-zinc-400">
-        {estimate.explanation.map((line, i) => (
-          <div key={i}>• {line}</div>
-        ))}
-      </div>
+      {estimate.explanation && estimate.explanation.length > 0 && (
+        <div className="border-t border-zinc-800 pt-3 space-y-2 text-xs text-zinc-400">
+          {estimate.explanation.map((line, i) => (
+            <div key={i}>• {line}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

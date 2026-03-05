@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
         ? `Project: ${projectDef.name}\nGoal: ${projectDef.goal}`
         : "Student architecture project";
       
-      const archDesc = `Components:\n${architecture.nodes.map(n => `- ${n.type}: ${n.label}`).join('\n')}`;
+      const archDesc = `Components:\n${(architecture.nodes || []).map((n: any) => `- ${n.type}: ${n.label}`).join('\n')}`;
       
       const prompt = buildCostEstimationPrompt({
         projectContext,
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   console.log("[student-cost] Using mock cost estimate");
   
   const mockEstimate = estimateCost(
-    { nodes: architecture.nodes, edges: architecture.edges },
+    { nodes: architecture.nodes, edges: architecture.edges || [] },
     context.teamSize,
     false
   );
