@@ -97,8 +97,8 @@ const SIDEBAR_WIDTH = 340;
 export default function CanvasPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [graph, setGraph] = useState<{
-    nodes: Array<{ id: string; label: string; type: string }>;
-    edges: Array<{ source: string; target: string }>;
+    nodes: Array<{ id: string; label: string; type: string; x: number; y: number }>;
+    edges: Array<{ from: string; to: string; label?: string }>;
   } | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string } | null>(null);
@@ -112,6 +112,8 @@ export default function CanvasPage() {
     affectedNodeType?: string;
     fixes?: any[];
   } | null>(null);
+  const [aiLoading, setAiLoading] = useState<boolean>(true);
+  const [aiProgress, setAiProgress] = useState<number>(0);
 
   useEffect(() => {
     // ── Load student's OWN build first; fallback to AI architecture ──
@@ -186,11 +188,35 @@ export default function CanvasPage() {
       .catch(err => console.error("[Canvas] Decisions error:", err));
   }, [projectId]);
 
+  // Debug: Log when graph changes
+  useEffect(() => {
+    if (graph) {
+      console.log("========================================");
+      console.log("[Canvas] GRAPH STATE UPDATED:");
+      console.log("  Nodes:", graph.nodes);
+      console.log("  Edges:", graph.edges);
+      console.log("========================================");
+    }
+  }, [graph]);
+
   // Fetch AI insights ONCE on mount - lock the responses
   useEffect(() => {
     if (!projectId) return;
     
     console.log("[Canvas] Fetching AI insights (ONE TIME)...");
+    setAiLoading(true);
+    setAiProgress(10);
+    
+    let completed = 0;
+    const checkComplete = () => {
+      completed++;
+      setAiProgress(30 + (completed * 20)); // 50%, 70%, 90%
+      if (completed >= 3) {
+        setAiLoading(false);
+        setAiProgress(100);
+        console.log("[Canvas] All AI insights loaded!");
+      }
+    };
     
     // Score
     fetch(`/api/student-mode/score?projectId=${projectId}`)
@@ -198,10 +224,12 @@ export default function CanvasPage() {
       .then(data => {
         console.log("[Canvas] Score response (LOCKED):", data);
         setScore(data);
+        checkComplete();
       })
       .catch(err => {
         console.error("[Canvas] Score error:", err);
         setScore(null);
+        checkComplete();
       });
     
     // Suggestions
@@ -210,10 +238,12 @@ export default function CanvasPage() {
       .then(data => {
         console.log("[Canvas] Suggestions response (LOCKED):", data);
         setSuggestions(data);
+        checkComplete();
       })
       .catch(err => {
         console.error("[Canvas] Suggestions error:", err);
         setSuggestions(null);
+        checkComplete();
       });
     
     // Cost - wait for graph to load first
@@ -231,20 +261,37 @@ export default function CanvasPage() {
           } else {
             console.warn("[Canvas] Cost returned error:", data.error);
           }
+          checkComplete();
         })
         .catch(err => {
           console.error("[Canvas] Cost error:", err);
+          checkComplete();
         });
     };
     attemptCost();
   }, [projectId]);
 
-  if (!graph) {
+  if (!graph || aiLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-purple-950/10 to-black text-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-          <div className="text-lg text-zinc-400">Rendering your architecture...</div>
+        <div className="text-center space-y-6 max-w-md">
+          <div className="w-20 h-20 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+          <div className="space-y-2">
+            <div className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              {!graph ? "Loading Architecture..." : "AI Analysis in Progress..."}
+            </div>
+            <div className="text-sm text-zinc-400">
+              {!graph ? "Building your system diagram" : "GPT-4 is analyzing your architecture"}
+            </div>
+          </div>
+          {/* Progress Bar */}
+          <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500 ease-out"
+              style={{ width: `${aiProgress}%` }}
+            ></div>
+          </div>
+          <div className="text-xs text-zinc-500">{aiProgress}% complete</div>
         </div>
       </div>
     );
@@ -253,6 +300,9 @@ export default function CanvasPage() {
   console.log("[Canvas] Rendering with graph:", graph);
   console.log("[Canvas] Nodes count:", graph.nodes?.length);
   console.log("[Canvas] Edges count:", graph.edges?.length);
+  if (graph.nodes && graph.nodes.length > 0) {
+    console.log("[Canvas] First node position:", graph.nodes[0]);
+  }
 
   const activeNode = graph.nodes.find((n: any) => n.id === activeNodeId);
   const nodeExplanation = activeNode ? explainNode(activeNode) : null;
@@ -436,66 +486,74 @@ export default function CanvasPage() {
         </svg>
 
         {/* Nodes */}
-        {graph.nodes && Array.isArray(graph.nodes) && graph.nodes.map((node: any) => {
-          const isActive = node.id === activeNodeId;
-          const isViolated = constraintError?.affectedNodeType === node.type;
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
+          {graph.nodes && Array.isArray(graph.nodes) && graph.nodes.length > 0 ? (
+            graph.nodes.map((node: any, idx: number) => {
+              const isActive = node.id === activeNodeId;
+              const isViolated = constraintError?.affectedNodeType === node.type;
 
-          console.log(`[Canvas] Rendering node ${node.id} at x=${node.x} y=${node.y}`);
+              // Node type color mapping
+              const nodeColors = {
+                frontend: { border: "border-blue-500", bg: "from-blue-500/20 to-blue-600/10", glow: "shadow-blue-500/50", text: "text-blue-400" },
+                backend: { border: "border-purple-500", bg: "from-purple-500/20 to-purple-600/10", glow: "shadow-purple-500/50", text: "text-purple-400" },
+                database: { border: "border-green-500", bg: "from-green-500/20 to-green-600/10", glow: "shadow-green-500/50", text: "text-green-400" },
+                cache: { border: "border-orange-500", bg: "from-orange-500/20 to-orange-600/10", glow: "shadow-orange-500/50", text: "text-orange-400" },
+                queue: { border: "border-yellow-500", bg: "from-yellow-500/20 to-yellow-600/10", glow: "shadow-yellow-500/50", text: "text-yellow-400" },
+              };
 
-          // Node type color mapping
-          const nodeColors = {
-            frontend: { border: "border-blue-500/50", bg: "from-blue-500/10 to-blue-600/5", glow: "shadow-blue-500/25" },
-            backend: { border: "border-purple-500/50", bg: "from-purple-500/10 to-purple-600/5", glow: "shadow-purple-500/25" },
-            database: { border: "border-green-500/50", bg: "from-green-500/10 to-green-600/5", glow: "shadow-green-500/25" },
-            cache: { border: "border-orange-500/50", bg: "from-orange-500/10 to-orange-600/5", glow: "shadow-orange-500/25" },
-            queue: { border: "border-yellow-500/50", bg: "from-yellow-500/10 to-yellow-600/5", glow: "shadow-yellow-500/25" },
-          };
+              const colors = nodeColors[node.type as keyof typeof nodeColors] || nodeColors.backend;
 
-          const colors = nodeColors[node.type as keyof typeof nodeColors] || nodeColors.backend;
-
-          return (
-            <div
-              key={node.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveNodeId(node.id);
-                setSelectedEdge(null);
-                setConstraintError(null);
-              }}
-              style={{ left: `${node.x}px`, top: `${node.y}px`, position: 'absolute' }}
-              className={`
-                z-10 w-64 backdrop-blur-xl rounded-2xl cursor-pointer transition-all duration-300
-                ${isViolated
-                  ? "bg-gradient-to-br from-red-900/40 to-red-800/40 border-2 border-red-500 shadow-lg shadow-red-500/50"
-                  : isActive
-                    ? `bg-gradient-to-br ${colors.bg} border-2 ${colors.border} shadow-xl ${colors.glow} scale-105`
-                    : `bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 border border-zinc-700/50 hover:${colors.border} hover:shadow-lg hover:${colors.glow} hover:scale-105`}
-              `}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className={`px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wider backdrop-blur-sm ${isActive ? `bg-gradient-to-r ${colors.bg} ${colors.border} border` : "bg-zinc-800/50 text-zinc-400"
-                    }`}>
-                    {node.type}
+              return (
+                <div
+                  key={node.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveNodeId(node.id);
+                    setSelectedEdge(null);
+                    setConstraintError(null);
+                  }}
+                  style={{ 
+                    left: `${node.x}px`, 
+                    top: `${node.y}px`, 
+                    position: 'absolute',
+                    pointerEvents: 'auto'
+                  }}
+                  className={`
+                    w-64 rounded-2xl cursor-pointer transition-all duration-300
+                    bg-gradient-to-br ${colors.bg} border-2 ${colors.border}
+                    shadow-xl ${colors.glow}
+                    ${isActive ? 'scale-105 ring-4 ring-purple-500/50' : 'hover:scale-105'}
+                  `}
+                >
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${colors.text}`}>
+                        {node.type}
+                      </div>
+                      {isActive && (
+                        <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                      )}
+                    </div>
+                    <div className="font-semibold text-lg text-white mb-1">{node.label}</div>
+                    {isViolated && (
+                      <div className="flex items-center gap-2 text-red-400 text-sm mt-3 p-2 bg-red-500/10 rounded-lg border border-red-500/30">
+                        <span className="text-lg">⚠</span>
+                        <span>Constraint violated</span>
+                      </div>
+                    )}
                   </div>
                   {isActive && (
-                    <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl -z-10"></div>
                   )}
                 </div>
-                <div className="font-semibold text-lg text-white mb-1">{node.label}</div>
-                {isViolated && (
-                  <div className="flex items-center gap-2 text-red-400 text-sm mt-3 p-2 bg-red-500/10 rounded-lg border border-red-500/30">
-                    <span className="text-lg">⚠</span>
-                    <span>Constraint violated</span>
-                  </div>
-                )}
-              </div>
-              {isActive && (
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl -z-10"></div>
-              )}
+              );
+            })
+          ) : (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-400 text-xl font-bold bg-red-900/50 px-6 py-4 rounded-xl border-2 border-red-500">
+              ⚠️ No nodes to render! Count: {graph.nodes?.length || 0}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* RIGHT SIDEBAR: Learning Flow */}
