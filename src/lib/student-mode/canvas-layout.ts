@@ -9,7 +9,7 @@ export function projectToCanvas(
 ): CanvasGraph {
   const nodes: CanvasNode[] = [];
 
-  const edges: CanvasEdge[] = architecture.edges.map(edge => ({
+  const edges: CanvasEdge[] = (architecture.edges || []).map(edge => ({
     from: edge.from,
     to: edge.to,
     label: edge.label,

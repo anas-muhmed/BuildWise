@@ -115,6 +115,8 @@ export default function CanvasPage() {
   useEffect(() => {
     // ── Load student's OWN build first; fallback to AI architecture ──
     const buildData = loadBuild(projectId);
+    console.log("[Canvas] loadBuild result:", buildData);
+    
     if (buildData?.selectedIds?.length) {
       const selectedIds = buildData.selectedIds;
       const nodes = selectedIds.map((id) => {
@@ -126,17 +128,51 @@ export default function CanvasPage() {
         };
       });
       const edges = buildEdgesFromSelection(selectedIds);
+      console.log("[Canvas] Using student build:", { nodes, edges });
       setGraph(projectToCanvas({ nodes, edges } as any));
     } else {
       // Fallback: AI-generated architecture
+      console.log("[Canvas] No student build, fetching AI architecture...");
       fetch(`/api/student-mode/materialize?projectId=${projectId}`)
         .then(res => res.json())
         .then(response => {
+          console.log("[Canvas] Materialize API response:", response);
           const data = response.architecture || response;
-          if (!data?.nodes) return;
+          if (!data?.nodes || !Array.isArray(data.nodes) || data.nodes.length === 0) {
+            console.warn("[Canvas] No valid architecture, using default");
+            // Default starter architecture
+            const defaultArch = {
+              nodes: [
+                { id: "web-frontend", label: "Web Frontend", type: "frontend" },
+                { id: "api-server", label: "API Server", type: "backend" },
+                { id: "primary-db", label: "Database", type: "database" },
+              ],
+              edges: [
+                { from: "web-frontend", to: "api-server", label: "HTTPS" },
+                { from: "api-server", to: "primary-db", label: "read/write" },
+              ],
+            };
+            setGraph(projectToCanvas(defaultArch));
+            return;
+          }
           setGraph(projectToCanvas(data));
         })
-        .catch(err => console.error("Failed to load architecture:", err));
+        .catch(err => {
+          console.error("[Canvas] Failed to load architecture:", err);
+          // Show default on error
+          const defaultArch = {
+            nodes: [
+              { id: "web-frontend", label: "Web Frontend", type: "frontend" },
+              { id: "api-server", label: "API Server", type: "backend" },
+              { id: "primary-db", label: "Database", type: "database" },
+            ],
+            edges: [
+              { from: "web-frontend", to: "api-server", label: "HTTPS" },
+              { from: "api-server", to: "primary-db", label: "read/write" },
+            ],
+          };
+          setGraph(projectToCanvas(defaultArch));
+        });
     }
   }, [projectId]);
 
