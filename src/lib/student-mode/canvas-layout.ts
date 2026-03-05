@@ -7,6 +7,8 @@ const Y_GAP = 160;
 export function projectToCanvas(
   architecture: ArchitectureGraph
 ): CanvasGraph {
+  console.log("[projectToCanvas] Input architecture:", architecture);
+  
   const nodes: CanvasNode[] = [];
 
   const edges: CanvasEdge[] = (architecture.edges || []).map(edge => ({
@@ -32,16 +34,21 @@ export function projectToCanvas(
     const col = columns[node.type] ?? 2;
     const row = rowTracker[col] ?? 0;
 
-    nodes.push({
+    const canvasNode = {
       id: node.id,
       label: node.label,
       type: node.type,
       x: 40 + col * X_GAP,
       y: 80 + row * Y_GAP,
-    });
+    };
+    
+    nodes.push(canvasNode);
+    console.log("[projectToCanvas] Created node:", canvasNode);
 
     rowTracker[col] = row + 1;
   }
 
-  return { nodes, edges };
+  const result = { nodes, edges };
+  console.log("[projectToCanvas] Output graph:", result);
+  return result;
 }
