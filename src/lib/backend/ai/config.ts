@@ -36,7 +36,7 @@ export const AI_CONFIG = {
    */
   MAX_TOKENS: 4000,
   TEMPERATURE: 0.3,
-  REQUEST_TIMEOUT: 30000, // 30 seconds
+  REQUEST_TIMEOUT: 90000, // 90 seconds (GPT-4-turbo needs more time)
 };
 
 /**
