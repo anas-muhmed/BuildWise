@@ -598,6 +598,7 @@ export default function CanvasPage() {
           </div>
         )}
       </div>
+    </div>
 
       <StepFooter projectId={projectId} currentStep="canvas" canContinue={true} />
     </div>
