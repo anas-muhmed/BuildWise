@@ -1,10 +1,10 @@
 import { ArchitectureGraph } from "./types";
 import { CanvasGraph, CanvasNode, CanvasEdge } from "./canvas-types";
 
-const X_GAP = 380;
-const Y_GAP = 180;
-const START_X = 80;
-const START_Y = 120;
+const X_GAP = 200;
+const Y_GAP = 140;
+const START_X = 50;
+const START_Y = 80;
 
 export function projectToCanvas(
   architecture: ArchitectureGraph
@@ -60,18 +60,15 @@ export function projectToCanvas(
     nodesByColumn.get(col)!.push(node);
   }
 
-  // Calculate positions with vertical centering per column
+  // Calculate positions with row tracking per column
   for (const [col, colNodes] of nodesByColumn.entries()) {
-    const totalHeight = (colNodes.length - 1) * Y_GAP;
-    const startYForColumn = START_Y + (400 - totalHeight) / 2; // Center vertically
-    
     colNodes.forEach((node, rowIndex) => {
       const canvasNode = {
         id: node.id,
         label: node.label,
         type: node.type,
         x: START_X + col * X_GAP,
-        y: Math.max(START_Y, startYForColumn + rowIndex * Y_GAP),
+        y: START_Y + rowIndex * Y_GAP,
       };
       
       nodes.push(canvasNode);

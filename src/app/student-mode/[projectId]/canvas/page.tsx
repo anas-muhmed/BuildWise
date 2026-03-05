@@ -345,13 +345,16 @@ export default function CanvasPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* CANVAS */}
         <div
-          className="relative h-full bg-gradient-to-br from-black via-zinc-950 to-black flex-1"
+          className="relative h-full bg-gradient-to-br from-black via-zinc-950 to-black flex-1 overflow-auto"
           onClick={() => {
             setActiveNodeId(null);
             setSelectedEdge(null);
             setConstraintError(null);
           }}
         >
+          {/* Canvas content wrapper with padding and min size */}
+          <div className="relative min-w-[1400px] min-h-[800px] p-8">
+          
           {/* Grid Pattern Background */}
           <div className="absolute inset-0 opacity-20" style={{
             backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
@@ -577,6 +580,7 @@ export default function CanvasPage() {
             </div>
           )}
         </div>
+        </div> {/* Close canvas content wrapper */}
       </div>
 
       {/* RIGHT SIDEBAR: Learning Flow */}
