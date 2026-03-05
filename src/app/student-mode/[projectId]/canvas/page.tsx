@@ -224,6 +224,10 @@ export default function CanvasPage() {
     );
   }
 
+  console.log("[Canvas] Rendering with graph:", graph);
+  console.log("[Canvas] Nodes count:", graph.nodes?.length);
+  console.log("[Canvas] Edges count:", graph.edges?.length);
+
   const activeNode = graph.nodes.find((n: any) => n.id === activeNodeId);
   const nodeExplanation = activeNode ? explainNode(activeNode) : null;
   const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
@@ -280,6 +284,20 @@ export default function CanvasPage() {
               <span>Click components to learn their purpose. Use the right panel to optimize your architecture.</span>
             </div>
           </div>
+
+          {/* Debug: Show if no nodes */}
+          {(!graph.nodes || graph.nodes.length === 0) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-4 backdrop-blur-xl bg-zinc-900/80 border border-red-500/50 rounded-2xl p-8 max-w-lg">
+                <div className="text-6xl">⚠️</div>
+                <div className="text-xl font-bold text-red-400">No Architecture Found</div>
+                <div className="text-sm text-zinc-400">
+                  Graph has {graph.nodes?.length || 0} nodes and {graph.edges?.length || 0} edges
+                </div>
+                <div className="text-xs text-zinc-500">Check console (F12) for debug logs</div>
+              </div>
+            </div>
+          )}
 
           {/* Score Breakdown Button */}
           {score?.breakdown && (
@@ -356,7 +374,7 @@ export default function CanvasPage() {
             </marker>
           </defs>
 
-          {graph.edges.map((edge: any, i: number) => {
+          {graph.edges && Array.isArray(graph.edges) && graph.edges.map((edge: any, i: number) => {
             const from = graph.nodes.find((n: any) => n.id === edge.from);
             const to = graph.nodes.find((n: any) => n.id === edge.to);
 
@@ -392,7 +410,7 @@ export default function CanvasPage() {
         </svg>
 
         {/* Nodes */}
-        {graph.nodes.map((node: any) => {
+        {graph.nodes && Array.isArray(graph.nodes) && graph.nodes.map((node: any) => {
           const isActive = node.id === activeNodeId;
           const isViolated = constraintError?.affectedNodeType === node.type;
 
