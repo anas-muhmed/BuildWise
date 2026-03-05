@@ -245,45 +245,40 @@ export default function CanvasPage() {
         setSuggestions(null);
         checkComplete();
       });
-    
-    // Cost - wait for graph to load AND be saved to store
-    const attemptCost = () => {
-      if (!graph) {
-        console.log("[Canvas] Waiting for graph before fetching cost...");
-        setTimeout(attemptCost, 500);
-        return;
-      }
-      
-      // Double-check architecture is in store
-      const storeCheck = architectureStore.get(projectId);
-      if (!storeCheck) {
-        console.log("[Canvas] Architecture not in store yet, saving now...");
-        architectureStore.set(projectId, { 
-          nodes: graph.nodes, 
-          edges: graph.edges 
-        });
-      }
-      
-      console.log("[Canvas] Fetching cost estimate...");
-      fetch(`/api/student-mode/cost?projectId=${projectId}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log("[Canvas] Cost response (LOCKED):", data);
-          if (!data.error) {
-            setCostEstimate(data);
-          } else {
-            console.warn("[Canvas] Cost returned error:", data.error);
-            setCostEstimate(data); // Still set it so we show something
-          }
-          checkComplete();
-        })
-        .catch(err => {
-          console.error("[Canvas] Cost error:", err);
-          checkComplete();
-        });
-    };
-    attemptCost();
   }, [projectId]);
+
+  // Separate effect for cost - depends on graph being loaded
+  useEffect(() => {
+    if (!projectId || !graph) {
+      console.log("[Canvas] Skipping cost fetch - waiting for graph...");
+      return;
+    }
+    
+    console.log("[Canvas] Graph loaded, fetching cost estimate...");
+    
+    // Ensure architecture is in store
+    const storeCheck = architectureStore.get(projectId);
+    if (!storeCheck) {
+      console.log("[Canvas] Saving architecture to store for cost endpoint...");
+      architectureStore.set(projectId, { 
+        nodes: graph.nodes, 
+        edges: graph.edges 
+      });
+    }
+    
+    fetch(`/api/student-mode/cost?projectId=${projectId}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("[Canvas] Cost response (LOCKED):", data);
+        setCostEstimate(data);
+        setAiProgress(100);
+        setAiLoading(false);
+      })
+      .catch(err => {
+        console.error("[Canvas] Cost error:", err);
+        setAiLoading(false);
+      });
+  }, [projectId, graph]);
 
   if (!graph || aiLoading) {
     return (

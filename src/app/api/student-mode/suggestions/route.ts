@@ -12,25 +12,53 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
 
   if (!projectId) {
+    console.warn("[student-suggestions] Missing projectId");
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
+  console.log("[student-suggestions] Fetching suggestions for projectId:", projectId);
   const state = architectureStore.get(projectId);
+  console.log("[student-suggestions] Architecture store state:", state);
 
   if (!state) {
-    return NextResponse.json(
-      { error: "Architecture not found" },
-      { status: 404 }
-    );
+    console.warn("[student-suggestions] Architecture not found in store, using default suggestions");
+    // Return default suggestions instead of 404
+    const defaultSuggestions = {
+      suggestions: [
+        {
+          id: "add-cache",
+          title: "Implement Caching Mechanism",
+          reason: "Caching frequently accessed data reduces database load and improves response times",
+          impact: { scalability: 3, cost: -1, simplicity: -1 },
+        },
+        {
+          id: "add-load-balancer",
+          title: "Add Load Balancer",
+          reason: "Distributes traffic across multiple servers for better reliability and performance",
+          impact: { scalability: 4, reliability: 3, cost: 2 },
+        },
+      ],
+      source: "mock",
+    };
+    return NextResponse.json(defaultSuggestions);
   }
 
   const architecture = state.architecture || state.baseArchitecture || state;
   
   if (!architecture || !architecture.nodes) {
-    return NextResponse.json(
-      { error: "Invalid architecture data" },
-      { status: 404 }
-    );
+    console.warn("[student-suggestions] Invalid architecture data, using default");
+    const defaultSuggestions = {
+      suggestions: [
+        {
+          id: "define-architecture",
+          title: "Define Architecture Components",
+          reason: "Start by selecting the core components your system needs",
+          impact: { simplicity: 2 },
+        },
+      ],
+      source: "mock",
+    };
+    return NextResponse.json(defaultSuggestions);
   }
 
   const decisions = getDecisions(projectId);
