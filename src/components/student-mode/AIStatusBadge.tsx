@@ -4,25 +4,25 @@
  */
 
 export default function AIStatusBadge({ source }: { source?: "ai" | "mock" }) {
-  if (!source) return null;
-
-  const isAI = source === "ai";
+  // Always show - default to mock if undefined
+  const effectiveSource = source || "mock";
+  const isAI = effectiveSource === "ai";
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${
         isAI
-          ? "bg-green-950 text-green-400 border border-green-800"
-          : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+          ? "bg-green-500/20 text-green-400 border-2 border-green-500"
+          : "bg-orange-500/20 text-orange-400 border-2 border-orange-500"
       }`}
       title={isAI ? "Real AI powered by GPT-4-turbo" : "Mock data (fallback)"}
     >
       <span
-        className={`w-2 h-2 rounded-full ${
-          isAI ? "bg-green-500 animate-pulse" : "bg-zinc-500"
+        className={`w-3 h-3 rounded-full ${
+          isAI ? "bg-green-500 shadow-lg shadow-green-500/50 animate-pulse" : "bg-orange-500"
         }`}
       />
-      <span>{isAI ? "AI Active" : "Mock"}</span>
+      <span className="uppercase tracking-wide">{isAI ? "AI" : "MOCK"}</span>
     </div>
   );
 }

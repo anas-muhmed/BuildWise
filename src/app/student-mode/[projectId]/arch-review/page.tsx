@@ -6,6 +6,7 @@ import { generateReadinessReport } from "@/lib/backend/services/readinessAnalyze
 import { loadBuild } from "@/lib/student-mode/build-store";
 import { COMPONENTS } from "@/lib/student-mode/component-catalog";
 import StepFooter from "@/components/student-mode/StepFooter";
+import AIStatusBadge from "@/components/student-mode/AIStatusBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

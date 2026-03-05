@@ -6,6 +6,7 @@ import { scoreArchitecture, ArchitectureScore } from "@/lib/student-mode/score-e
 import { generateReadinessReport } from "@/lib/backend/services/readinessAnalyzer";
 import { loadDistributionResult } from "@/lib/student-mode/team-store";
 import StepFooter from "@/components/student-mode/StepFooter";
+import AIStatusBadge from "@/components/student-mode/AIStatusBadge";
 
 // ─── Grade calculation ────────────────────────────────────────────────────────
 function getGrade(pct: number): { letter: string; color: string; label: string } {

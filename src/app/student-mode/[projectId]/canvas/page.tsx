@@ -150,18 +150,27 @@ export default function CanvasPage() {
   useEffect(() => {
     fetch(`/api/student-mode/score?projectId=${projectId}`)
       .then(res => res.json())
-      .then(setScore)
+      .then(data => {
+        console.log("[Canvas] Score response:", data);
+        setScore(data);
+      })
       .catch(() => setScore(null));
   }, [projectId, decisions]);
 
   useEffect(() => {
     fetch(`/api/student-mode/suggestions?projectId=${projectId}`)
       .then(res => res.json())
-      .then(setSuggestions)
+      .then(data => {
+        console.log("[Canvas] Suggestions response:", data);
+        setSuggestions(data);
+      })
       .catch(() => setSuggestions(null));
   }, [projectId, decisions, score]);
 
-  useEffect(() => {
+  useEffect(data => {
+        console.log("[Canvas] Cost response:", data);
+        setCostEstimate(data);
+      }
     fetch(`/api/student-mode/cost?projectId=${projectId}`)
       .then(res => res.json())
       .then(setCostEstimate)
@@ -205,6 +214,14 @@ export default function CanvasPage() {
         {/* Gradient Orbs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
+        
+        {/* AI Status Indicator - Top Right */}
+        <div className="absolute top-6 right-6 z-20 flex flex-col gap-3">
+          {score && <AIStatusBadge source={score.source} />}
+          {suggestions && <AIStatusBadge source={suggestions.source} />}
+          {costEstimate && <AIStatusBadge source={costEstimate.source} />}
+        </div>
+
         {/* Score Badge */}
         {score && (
           <div className="absolute top-6 left-6 z-20">

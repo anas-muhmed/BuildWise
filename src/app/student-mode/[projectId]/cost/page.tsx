@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { loadBuild } from "@/lib/student-mode/build-store";
 import { COMPONENTS, ComponentId } from "@/lib/student-mode/component-catalog";
 import StepFooter from "@/components/student-mode/StepFooter";
+import AIStatusBadge from "@/components/student-mode/AIStatusBadge";
 
 // Monthly cost per component (USD, approximate cloud pricing)
 const COMPONENT_COST: Record<ComponentId, { min: number; max: number; note: string }> = {
