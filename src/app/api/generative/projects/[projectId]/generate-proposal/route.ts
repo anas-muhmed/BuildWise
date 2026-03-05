@@ -259,15 +259,13 @@ Top priority: ${requirements.priority || "balanced"}
 
 Generate 3 architecturally different proposals now.`;
 
-        const aiResponse = await callOpenAI({
-          systemPrompt: ARCHITECTURE_SYSTEM_PROMPT,
-          userMessage,
-          temperature: 0.7,
-          maxTokens: 4000,
-        });
+        const aiResult = await callOpenAI(
+          ARCHITECTURE_SYSTEM_PROMPT,
+          userMessage
+        );
 
         // Parse and validate
-        const parsed = JSON.parse(aiResponse);
+        const parsed = JSON.parse(aiResult.content);
         if (parsed.proposals && Array.isArray(parsed.proposals) && parsed.proposals.length >= 3) {
           // Ensure each proposal has required fields
           proposals = parsed.proposals.slice(0, 3).map((p: any, idx: number) => ({
