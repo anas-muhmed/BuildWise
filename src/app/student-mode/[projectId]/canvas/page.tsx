@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { projectToCanvas } from "@/lib/student-mode/canvas-layout";
 import { explainNode } from "@/lib/student-mode/explain";
 import { explainEdge } from "@/lib/student-mode/explain-edge";
-import { estimateCost } from "@/lib/student-mode/cost-estimator";
 import { loadBuild } from "@/lib/student-mode/build-store";
 import { COMPONENTS, ComponentId } from "@/lib/student-mode/component-catalog";
 import NodeExplain from "@/components/student-mode/NodeExplain";
@@ -14,6 +13,7 @@ import DecisionPanel from "@/components/student-mode/DecisionPanel";
 import VersionPanel from "@/components/student-mode/VersionPanel";
 import CostPanel from "@/components/student-mode/CostPanel";
 import StepFooter from "@/components/student-mode/StepFooter";
+import AIStatusBadge from "@/components/student-mode/AIStatusBadge";
 
 // ── Auto-generate logical edges based on which components are selected ──────
 function buildEdgesFromSelection(selectedIds: ComponentId[]) {
@@ -102,9 +102,10 @@ export default function CanvasPage() {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string } | null>(null);
   const [decisions, setDecisions] = useState<Record<string, unknown>>({});
-  const [score, setScore] = useState<Record<string, unknown> | null>(null);
+  const [score, setScore] = useState<any>(null);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
-  const [suggestions, setSuggestions] = useState<Array<Record<string, unknown>>>([]);
+  const [suggestions, setSuggestions] = useState<any>(null);
+  const [costEstimate, setCostEstimate] = useState<any>(null);
   const [constraintError, setConstraintError] = useState<{
     message: string;
     affectedNodeType?: string;
@@ -157,8 +158,15 @@ export default function CanvasPage() {
     fetch(`/api/student-mode/suggestions?projectId=${projectId}`)
       .then(res => res.json())
       .then(setSuggestions)
-      .catch(() => setSuggestions([]));
+      .catch(() => setSuggestions(null));
   }, [projectId, decisions, score]);
+
+  useEffect(() => {
+    fetch(`/api/student-mode/cost?projectId=${projectId}`)
+      .then(res => res.json())
+      .then(setCostEstimate)
+      .catch(() => setCostEstimate(null));
+  }, [projectId, graph]);
 
   if (!graph) {
     return (
@@ -167,13 +175,9 @@ export default function CanvasPage() {
           <div className="w-16 h-16 mx-auto border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
           <div className="text-lg text-zinc-400">Rendering your architecture...</div>
         </div>
-      </div>
-    );
-
-  }
-
   const activeNode = graph.nodes.find((n: any) => n.id === activeNodeId);
   const nodeExplanation = activeNode ? explainNode(activeNode) : null;
+  const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
   const edgeExplanation = selectedEdge ? explainEdge(selectedEdge) : null;
 
   const teamSize = 3; // TODO: replace with real team state later
@@ -227,6 +231,10 @@ export default function CanvasPage() {
             {/* Score Breakdown Modal */}
             {showScoreBreakdown && score?.breakdown && (
               <div className="absolute top-full left-0 mt-3 backdrop-blur-xl bg-gradient-to-br from-zinc-900/95 to-zinc-800/95 border border-zinc-700/50 rounded-2xl p-6 w-96 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-zinc-200">Score Breakdown</h4>
+                  <AIStatusBadge source={score.source} />
+                </div>
                 <div className="space-y-4">
                   {Object.entries(score.breakdown).map(([key, data]: [string, any]) => {
                     const percentage = (data.score / data.max) * 100;
@@ -469,13 +477,16 @@ export default function CanvasPage() {
             />
 
             {/* Suggestions Section */}
-            {suggestions.length > 0 && (
+            {suggestions?.suggestions?.length > 0 && (
               <div className="pt-4 border-t border-zinc-800">
-                <h3 className="text-sm font-semibold text-zinc-300 mb-3">
-                  Suggested Improvements
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-zinc-300">
+                    Suggested Improvements
+                  </h3>
+                  <AIStatusBadge source={suggestions.source} />
+                </div>
                 <div className="space-y-3">
-                  {suggestions.map((suggestion: any) => (
+                  {suggestions.suggestions.map((suggestion: any) => (
                     <div
                       key={suggestion.id}
                       className="bg-zinc-900 border border-zinc-700 rounded p-3"
@@ -509,9 +520,11 @@ export default function CanvasPage() {
             )}
 
             {/* Cost Estimation */}
-            <div className="pt-4 border-t border-zinc-800">
-              <CostPanel estimate={costEstimate} />
-            </div>
+            {costEstimate && (
+              <div className="pt-4 border-t border-zinc-800">
+                <CostPanel estimate={costEstimate} source={costEstimate.source} />
+              </div>
+            )}
           </div>
         ) : nodeExplanation ? (
           <NodeExplain
