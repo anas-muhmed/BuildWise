@@ -6,6 +6,7 @@ import { projectToCanvas } from "@/lib/student-mode/canvas-layout";
 import { explainNode } from "@/lib/student-mode/explain";
 import { explainEdge } from "@/lib/student-mode/explain-edge";
 import { loadBuild } from "@/lib/student-mode/build-store";
+import { architectureStore } from "@/lib/student-mode/store";
 import { COMPONENTS, ComponentId } from "@/lib/student-mode/component-catalog";
 import NodeExplain from "@/components/student-mode/NodeExplain";
 import BackendDecision from "@/components/student-mode/BackendDecision";
@@ -129,7 +130,10 @@ export default function CanvasPage() {
       });
       const edges = buildEdgesFromSelection(selectedIds);
       console.log("[Canvas] Using student build:", { nodes, edges });
-      setGraph(projectToCanvas({ nodes, edges } as any));
+      const canvasGraph = projectToCanvas({ nodes, edges } as any);
+      setGraph(canvasGraph);
+      // Save to architectureStore so cost endpoint can access it
+      architectureStore.set(projectId, { nodes, edges });
     } else {
       // Fallback: AI-generated architecture OR default
       console.log("[Canvas] No student build, trying AI architecture...");
@@ -146,7 +150,10 @@ export default function CanvasPage() {
           { from: "api-server", to: "primary-db", label: "read/write" },
         ],
       };
-      setGraph(projectToCanvas(defaultArch));
+      const defaultCanvas = projectToCanvas(defaultArch);
+      setGraph(defaultCanvas);
+      // Save default to architectureStore
+      architectureStore.set(projectId, defaultArch);
       
       // Then try to load AI arch in background
       fetch(`/api/student-mode/materialize?projectId=${projectId}`)
@@ -156,7 +163,10 @@ export default function CanvasPage() {
           const data = response.architecture || response;
           if (data?.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
             console.log("[Canvas] Replacing default with AI architecture");
-            setGraph(projectToCanvas(data));
+            const aiCanvas = projectToCanvas(data);
+            setGraph(aiCanvas);
+            // Save AI arch to store
+            architectureStore.set(projectId, data);
           } else {
             console.warn("[Canvas] AI returned invalid architecture, keeping default");
           }
@@ -172,38 +182,62 @@ export default function CanvasPage() {
   useEffect(() => {
     fetch(`/api/student-mode/decisions?projectId=${projectId}`)
       .then(res => res.json())
-      .then(setDecisions);
+      .then(setDecisions)
+      .catch(err => console.error("[Canvas] Decisions error:", err));
   }, [projectId]);
 
+  // Fetch AI insights ONCE on mount - lock the responses
   useEffect(() => {
+    if (!projectId) return;
+    
+    console.log("[Canvas] Fetching AI insights (ONE TIME)...");
+    
+    // Score
     fetch(`/api/student-mode/score?projectId=${projectId}`)
       .then(res => res.json())
       .then(data => {
-        console.log("[Canvas] Score response:", data);
+        console.log("[Canvas] Score response (LOCKED):", data);
         setScore(data);
       })
-      .catch(() => setScore(null));
-  }, [projectId, decisions]);
-
-  useEffect(() => {
+      .catch(err => {
+        console.error("[Canvas] Score error:", err);
+        setScore(null);
+      });
+    
+    // Suggestions
     fetch(`/api/student-mode/suggestions?projectId=${projectId}`)
       .then(res => res.json())
       .then(data => {
-        console.log("[Canvas] Suggestions response:", data);
+        console.log("[Canvas] Suggestions response (LOCKED):", data);
         setSuggestions(data);
       })
-      .catch(() => setSuggestions(null));
-  }, [projectId, decisions, score]);
-
-  useEffect(() => {
-    fetch(`/api/student-mode/cost?projectId=${projectId}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("[Canvas] Cost response:", data);
-        setCostEstimate(data);
-      })
-      .catch(() => setCostEstimate(null));
-  }, [projectId, graph]);
+      .catch(err => {
+        console.error("[Canvas] Suggestions error:", err);
+        setSuggestions(null);
+      });
+    
+    // Cost - wait for graph to load first
+    const attemptCost = () => {
+      if (!graph) {
+        setTimeout(attemptCost, 500);
+        return;
+      }
+      fetch(`/api/student-mode/cost?projectId=${projectId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("[Canvas] Cost response (LOCKED):", data);
+          if (!data.error) {
+            setCostEstimate(data);
+          } else {
+            console.warn("[Canvas] Cost returned error:", data.error);
+          }
+        })
+        .catch(err => {
+          console.error("[Canvas] Cost error:", err);
+        });
+    };
+    attemptCost();
+  }, [projectId]);
 
   if (!graph) {
     return (
@@ -406,6 +440,8 @@ export default function CanvasPage() {
           const isActive = node.id === activeNodeId;
           const isViolated = constraintError?.affectedNodeType === node.type;
 
+          console.log(`[Canvas] Rendering node ${node.id} at x=${node.x} y=${node.y}`);
+
           // Node type color mapping
           const nodeColors = {
             frontend: { border: "border-blue-500/50", bg: "from-blue-500/10 to-blue-600/5", glow: "shadow-blue-500/25" },
@@ -426,9 +462,9 @@ export default function CanvasPage() {
                 setSelectedEdge(null);
                 setConstraintError(null);
               }}
-              style={{ left: node.x, top: node.y }}
+              style={{ left: `${node.x}px`, top: `${node.y}px`, position: 'absolute' }}
               className={`
-                group absolute z-10 w-64 backdrop-blur-xl rounded-2xl cursor-pointer transition-all duration-300
+                z-10 w-64 backdrop-blur-xl rounded-2xl cursor-pointer transition-all duration-300
                 ${isViolated
                   ? "bg-gradient-to-br from-red-900/40 to-red-800/40 border-2 border-red-500 shadow-lg shadow-red-500/50"
                   : isActive
