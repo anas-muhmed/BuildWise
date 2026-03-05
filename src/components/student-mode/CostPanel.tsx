@@ -1,13 +1,17 @@
 "use client";
 
 import { CostEstimate } from "@/lib/student-mode/cost-estimator";
+import AIStatusBadge from "./AIStatusBadge";
 
-export default function CostPanel({ estimate }: { estimate: CostEstimate }) {
+export default function CostPanel({ estimate, source }: { estimate: CostEstimate; source?: "ai" | "mock" }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-zinc-200">
-        💰 Cost & Resource Estimate
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-zinc-200">
+          💰 Cost & Resource Estimate
+        </h3>
+        <AIStatusBadge source={source} />
+      </div>
 
       <div className="text-sm space-y-2">
         <div>

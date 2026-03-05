@@ -15,14 +15,21 @@ export async function GET(req: NextRequest) {
 
   const state = architectureStore.get(projectId);
 
-  if (!state || !state.architecture) {
+  if (!state) {
     return NextResponse.json(
       { error: "Architecture not found" },
       { status: 404 }
     );
   }
 
-  const architecture = state.architecture;
+  const architecture = state.architecture || state.baseArchitecture || state;
+  
+  if (!architecture || !architecture.nodes) {
+    return NextResponse.json(
+      { error: "Invalid architecture data" },
+      { status: 404 }
+    );
+  }
   const context = getProjectContext(projectId);
 
   if (AI_CONFIG.USE_REAL_AI) {

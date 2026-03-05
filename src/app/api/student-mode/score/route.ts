@@ -14,11 +14,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
-  const architecture = architectureStore.get(projectId);
+  const state = architectureStore.get(projectId);
 
-  if (!architecture) {
+  if (!state) {
     return NextResponse.json(
       { error: "Architecture not found" },
+      { status: 404 }
+    );
+  }
+
+  const architecture = state.architecture || state.baseArchitecture || state;
+  
+  if (!architecture || !architecture.nodes) {
+    return NextResponse.json(
+      { error: "Invalid architecture data" },
       { status: 404 }
     );
   }
