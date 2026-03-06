@@ -33,11 +33,26 @@ export const AI_CONFIG = {
    * Temperature: 0.3 for structured output
    * - Architecture decisions must be deterministic
    * - Lower temp = less hallucination, better contract compliance
+   * 
+   * Max tokens: 1000 for structured JSON responses
+   * - Prevents oversized/truncated responses
+   * - Adequate for concise architecture descriptions
    */
-  MAX_TOKENS: 4000,
+  MAX_TOKENS: 1000,
   TEMPERATURE: 0.3,
-  REQUEST_TIMEOUT: 90000, // 90 seconds (GPT-4-turbo needs more time)
+  REQUEST_TIMEOUT: 120000, // 120 seconds (2 minutes for GPT-4-turbo)
 };
+
+// Debug: Log config on module load
+if (typeof window === 'undefined') { // Server-side only
+  console.log("========================================");
+  console.log("[AI_CONFIG] Module loaded");
+  console.log("[AI_CONFIG] process.env.USE_REAL_AI:", process.env.USE_REAL_AI);
+  console.log("[AI_CONFIG] Parsed USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+  console.log("[AI_CONFIG] API Key present:", !!AI_CONFIG.OPENAI_API_KEY);
+  console.log("[AI_CONFIG] API Key length:", AI_CONFIG.OPENAI_API_KEY?.length || 0);
+  console.log("========================================");
+}
 
 /**
  * Validation: Check if AI provider is configured correctly

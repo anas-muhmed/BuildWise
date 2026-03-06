@@ -72,19 +72,28 @@ export async function GET(req: NextRequest) {
   });
 
   let suggestions;
+  let actualSource = "mock";
+
+  console.log("========================================");
+  console.log("[student-suggestions] SUGGESTIONS REQUEST");
+  console.log("  Project ID:", projectId);
+  console.log("  Nodes count:", architecture.nodes?.length);
+  console.log("  USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+  console.log("  API Key exists:", !!AI_CONFIG.OPENAI_API_KEY);
+  console.log("========================================");
 
   if (AI_CONFIG.USE_REAL_AI) {
     try {
-      console.log("[student-suggestions] Using real AI for suggestions");
+      console.log("[student-suggestions] ✅ Attempting real AI call...");
       
       const projectDef = projectDefinitionStore.get(projectId);
       const projectContext = projectDef 
-        ? `Name: ${projectDef.name}\nDescription: ${projectDef.description}\nTeam: ${context.teamSize} developers (${context.experienceLevel})`
+        ? `Name: ${projectDef.name}\nGoal: ${projectDef.goal}\nTeam: ${context.teamSize} developers (${context.experienceLevel})`
         : `Team: ${context.teamSize} developers (${context.experienceLevel})`;
       
-      const archDesc = `Nodes: ${architecture.nodes.map(n => `${n.type} (${n.label})`).join(", ")}\nEdges: ${architecture.edges.length} connections`;
+      const archDesc = `Nodes: ${architecture.nodes.map((n: any) => `${n.type} (${n.label})`).join(", ")}\nEdges: ${architecture.edges.length} connections`;
       const decisionsDesc = Object.entries(decisions).map(([k, v]) => `${k}: ${v}`).join(", ") || "None";
-      const scoreDesc = `Total: ${score.total}/${score.max}\nBreakdown: ${Object.entries(score.breakdown).map(([k,v]) => `${k} ${v.score}/${v.max}`).join(", ")}`;
+      const scoreDesc = `Total: ${score.total}/${score.maxTotal}\nBreakdown: ${Object.entries(score.breakdown).map(([k,v]) => `${k} ${v.score}/${v.max}`).join(", ")}`;
       
       const prompt = buildSuggestionsPrompt({
         projectContext,
@@ -99,9 +108,15 @@ export async function GET(req: NextRequest) {
       const parsed = JSON.parse(aiResult.content);
       
       suggestions = parsed.suggestions || [];
-      console.log("[student-suggestions] Real AI suggestions generated successfully");
+      actualSource = "ai";
+      console.log("[student-suggestions] ✅✅✅ Real AI suggestions generated!");
+      console.log("  Suggestions count:", suggestions.length);
     } catch (error) {
-      console.error("[student-suggestions] AI failed, using fallback:", error);
+      console.error("========================================");
+      console.error("[student-suggestions] ❌❌❌ AI CALL FAILED!");
+      console.error("  Error:", error instanceof Error ? error.message : String(error));
+      console.error("  Falling back to rule-based suggestions");
+      console.error("========================================");
       // Fall back to rule-based suggestions
       suggestions = generateSuggestions({
         nodes: architecture.nodes,
@@ -110,9 +125,10 @@ export async function GET(req: NextRequest) {
         context,
         score,
       });
+      actualSource = "mock";
     }
   } else {
-    console.log("[student-suggestions] Using mock suggestions");
+    console.log("[student-suggestions] ⚠️ USE_REAL_AI is FALSE, using mock");
     suggestions = generateSuggestions({
       nodes: architecture.nodes,
       edges: architecture.edges,
@@ -120,10 +136,11 @@ export async function GET(req: NextRequest) {
       context,
       score,
     });
+    actualSource = "mock";
   }
 
   return NextResponse.json({
     suggestions,
-    source: AI_CONFIG.USE_REAL_AI ? "ai" : "mock",
+    source: actualSource,
   });
 }

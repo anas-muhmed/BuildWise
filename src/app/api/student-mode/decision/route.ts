@@ -41,14 +41,22 @@ export async function POST(req: NextRequest) {
   let scoreDelta = decision?.effect.scoreDelta || 5;
   let tradeoffs = null;
   let tip = null;
+  let actualSource = "mock"; // Track actual source
+
+  console.log("========================================");
+  console.log("[student-decision] DECISION REQUEST");
+  console.log("  Decision ID:", decisionId);
+  console.log("  USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+  console.log("  API Key exists:", !!AI_CONFIG.OPENAI_API_KEY);
+  console.log("========================================");
 
   if (AI_CONFIG.USE_REAL_AI) {
     try {
-      console.log("[student-decision] Using real AI for decision explanation");
+      console.log("[student-decision] ✅ Attempting real AI call...");
       
       const projectDef = projectDefinitionStore.get(projectId);
       const projectContext = projectDef 
-        ? `Project: ${projectDef.name}\nDescription: ${projectDef.description}`
+        ? `Project: ${projectDef.name}\nGoal: ${projectDef.goal}`
         : "Student architecture project";
       
       const currentArch = `Nodes: ${updated.nodes.map(n => n.label).join(", ")}`;
@@ -69,19 +77,31 @@ export async function POST(req: NextRequest) {
       scoreDelta = parsed.scoreDelta || scoreDelta;
       tradeoffs = parsed.tradeoffs || null;
       tip = parsed.tip || null;
+      actualSource = "ai";
       
-      console.log("[student-decision] Real AI explanation generated successfully");
+      console.log("[student-decision] ✅✅✅ Real AI explanation generated!");
+      console.log("  Score delta:", scoreDelta);
     } catch (error) {
-      console.error("[student-decision] AI failed, using fallback:", error);
+      console.error("========================================");
+      console.error("[student-decision] ❌❌❌ AI CALL FAILED!");
+      console.error("  Error:", error instanceof Error ? error.message : String(error));
+      console.error("========================================");
       // Fall back to hardcoded explanation
+      const mockData = getDecisionExplanationMock(decisionId);
+      explanation = mockData.explanation;
+      scoreDelta = mockData.scoreDelta;
+      tradeoffs = mockData.tradeoffs;
+      tip = mockData.tip;
+      actualSource = "mock";
     }
   } else {
-    console.log("[student-decision] Using mock explanation");
+    console.log("[student-decision] ⚠️ USE_REAL_AI is FALSE, using mock");
     const mockData = getDecisionExplanationMock(decisionId);
     explanation = mockData.explanation;
     scoreDelta = mockData.scoreDelta;
     tradeoffs = mockData.tradeoffs;
     tip = mockData.tip;
+    actualSource = "mock";
   }
 
   return NextResponse.json({
@@ -90,6 +110,6 @@ export async function POST(req: NextRequest) {
     scoreDelta,
     tradeoffs,
     tip,
-    source: AI_CONFIG.USE_REAL_AI ? "ai" : "mock",
+    source: actualSource,
   });
 }

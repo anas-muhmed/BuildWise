@@ -100,7 +100,9 @@ CRITICAL RULES:
 4. depends_on values must exactly match module names within the same proposal
 5. Return ONLY valid JSON, no markdown, no code fences, no explanations
 6. Module count: 4-8 per proposal
-7. Decision count: 4-8 per proposal`;
+7. Decision count: 4-8 per proposal
+8. Keep descriptions concise (max 15 words for responsibility, max 25 words for reasoning)
+9. Limit arrays: max 3 alternatives, max 4 assumptions, max 4 pros, max 3 cons`;
 
 // ── Mock Proposals (fallback) ──────────────────────────────────────────────
 
@@ -261,7 +263,8 @@ Generate 3 architecturally different proposals now.`;
 
         const aiResult = await callOpenAI(
           ARCHITECTURE_SYSTEM_PROMPT,
-          userMessage
+          userMessage,
+          3500 // Higher token limit for 3 full proposals with modules and decisions
         );
 
         // Parse and validate

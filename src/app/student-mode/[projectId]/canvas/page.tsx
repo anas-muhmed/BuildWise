@@ -355,13 +355,15 @@ export default function CanvasPage() {
           <div className="flex items-center gap-4">
             {score && (
               <div className="text-right">
-                <div className="text-xs text-zinc-400 mb-1">Quality Score</div>
+                <div className="text-xs text-zinc-400 mb-1 flex items-center gap-2">
+                  Quality Score
+                  <AIStatusBadge source={score?.source} />
+                </div>
                 <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   {score.total}<span className="text-sm text-zinc-500">/{score.maxTotal}</span>
                 </div>
               </div>
             )}
-            <AIStatusBadge source={score?.source || suggestions?.source || costEstimate?.source} />
           </div>
         </div>
       </div>
@@ -478,11 +480,11 @@ export default function CanvasPage() {
               viewBox="0 0 10 10"
               refX="10"
               refY="5"
-              markerWidth="6"
-              markerHeight="6"
+              markerWidth="7"
+              markerHeight="7"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1" />
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6" />
             </marker>
           </defs>
 
@@ -492,9 +494,9 @@ export default function CanvasPage() {
 
             if (!from || !to) return null;
 
-            // Node dimensions: w-40 = 160px width, approximate height ~70px
-            const nodeWidth = 160;
-            const nodeHeight = 70;
+            // Node dimensions: w-48 = 192px width, approximate height ~80px
+            const nodeWidth = 192;
+            const nodeHeight = 80;
             
             const x1 = from.x + nodeWidth; // Right edge of source node
             const y1 = from.y + nodeHeight / 2; // Vertical center of source
@@ -509,9 +511,9 @@ export default function CanvasPage() {
               <path
                 key={i}
                 d={pathData}
-                stroke="#6366f1"
-                strokeWidth="2"
-                strokeOpacity="0.6"
+                stroke="#8b5cf6"
+                strokeWidth="2.5"
+                strokeOpacity="0.7"
                 fill="none"
                 markerEnd="url(#arrow)"
                 onClick={(e) => {
@@ -520,7 +522,7 @@ export default function CanvasPage() {
                   setActiveNodeId(null);
                   setConstraintError(null);
                 }}
-                className="cursor-pointer hover:stroke-indigo-400 transition-colors"
+                className="cursor-pointer hover:stroke-purple-400 hover:stroke-opacity-100 transition-all"
                 style={{ pointerEvents: 'stroke' }}
               />
             );
@@ -569,22 +571,22 @@ export default function CanvasPage() {
                     pointerEvents: 'auto'
                   }}
                   className={`
-                    w-40 rounded-xl cursor-pointer transition-all duration-300
+                    w-48 rounded-xl cursor-pointer transition-all duration-300
                     bg-gradient-to-br ${colors.bg} border-2 ${colors.border}
-                    shadow-lg ${colors.glow}
-                    ${isActive ? 'scale-105 ring-4 ring-purple-500/50' : 'hover:scale-105'}
+                    shadow-lg ${colors.glow} backdrop-blur-sm
+                    ${isActive ? 'scale-110 ring-4 ring-purple-500/50 shadow-2xl' : 'hover:scale-105 hover:shadow-xl'}
                   `}
                 >
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${colors.text}`}>
-                        {node.type.replace("-", " ").slice(0, 12)}
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${colors.text} bg-black/20`}>
+                        {node.type.replace("-", " ").slice(0, 14)}
                       </div>
                       {isActive && (
-                        <div className="w-1.5 h-1.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
                       )}
                     </div>
-                    <div className="font-semibold text-sm text-white mb-0.5 truncate">{node.label}</div>
+                    <div className="font-semibold text-base text-white leading-tight">{node.label}</div>
                     {isViolated && (
                       <div className="flex items-center gap-1 text-red-400 text-[10px] mt-2 p-1.5 bg-red-500/10 rounded border border-red-500/30">
                         <span className="text-xs">⚠</span>

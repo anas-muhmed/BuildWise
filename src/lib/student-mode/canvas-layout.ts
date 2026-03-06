@@ -1,10 +1,10 @@
 import { ArchitectureGraph } from "./types";
 import { CanvasGraph, CanvasNode, CanvasEdge } from "./canvas-types";
 
-const X_GAP = 200;
-const Y_GAP = 140;
-const START_X = 50;
-const START_Y = 80;
+const X_GAP = 280;
+const Y_GAP = 150;
+const START_X = 100;
+const START_Y = 100;
 
 export function projectToCanvas(
   architecture: ArchitectureGraph

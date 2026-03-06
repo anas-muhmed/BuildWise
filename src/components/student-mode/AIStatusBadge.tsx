@@ -1,6 +1,7 @@
 /**
  * AI Status Badge
  * Shows whether real AI or mock is being used
+ * Displays as a small dot for internal reference only
  */
 
 export default function AIStatusBadge({ source }: { source?: "ai" | "mock" }) {
@@ -10,19 +11,12 @@ export default function AIStatusBadge({ source }: { source?: "ai" | "mock" }) {
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${
+      className={`inline-flex items-center justify-center w-3 h-3 rounded-full ${
         isAI
-          ? "bg-green-500/20 text-green-400 border-2 border-green-500"
-          : "bg-orange-500/20 text-orange-400 border-2 border-orange-500"
+          ? "bg-green-500 shadow-md shadow-green-500/50 animate-pulse"
+          : "bg-orange-500 shadow-md shadow-orange-500/50"
       }`}
-      title={isAI ? "Real AI powered by GPT-4-turbo" : "Mock data (fallback)"}
-    >
-      <span
-        className={`w-3 h-3 rounded-full ${
-          isAI ? "bg-green-500 shadow-lg shadow-green-500/50 animate-pulse" : "bg-orange-500"
-        }`}
-      />
-      <span className="uppercase tracking-wide">{isAI ? "AI" : "MOCK"}</span>
-    </div>
+      title={isAI ? "AI (GPT-4)" : "Mock (dev)"}
+    />
   );
 }

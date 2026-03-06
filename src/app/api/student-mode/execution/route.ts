@@ -23,9 +23,17 @@ export async function GET(req: NextRequest) {
 
   const architecture = state.architecture;
 
+  console.log("========================================");
+  console.log("[student-execution] EXECUTION PLAN REQUEST");
+  console.log("  Project ID:", projectId);
+  console.log("  Nodes count:", architecture.nodes?.length);
+  console.log("  USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+  console.log("  API Key exists:", !!AI_CONFIG.OPENAI_API_KEY);
+  console.log("========================================");
+
   if (AI_CONFIG.USE_REAL_AI) {
     try {
-      console.log("[student-execution] Using real AI for execution plan");
+      console.log("[student-execution] ✅ Attempting real AI call...");
       
       const projectDef = projectDefinitionStore.get(projectId);
       const projectContext = projectDef 
@@ -44,7 +52,8 @@ export async function GET(req: NextRequest) {
       const aiResult = await callOpenAI(systemPrompt, prompt);
       const aiPlan = JSON.parse(aiResult.content);
       
-      console.log("[student-execution] Real AI execution plan generated");
+      console.log("[student-execution] ✅✅✅ Real AI execution plan generated!");
+      console.log("  Phases:", aiPlan.developmentPhases?.length);
       
       const blueprint: ExecutionBlueprint = {
         projectId,
@@ -56,12 +65,18 @@ export async function GET(req: NextRequest) {
         source: "ai",
       });
     } catch (error) {
-      console.error("[student-execution] AI failed, using fallback:", error);
+      console.error("========================================");
+      console.error("[student-execution] ❌❌❌ AI CALL FAILED!");
+      console.error("  Error:", error instanceof Error ? error.message : String(error));
+      console.error("  Falling back to mock plan");
+      console.error("========================================");
       // Fall through to mock
     }
+  } else {
+    console.log("[student-execution] ⚠️ USE_REAL_AI is FALSE, using mock");
   }
 
-  console.log("[student-execution] Using mock execution plan");
+  console.log("[student-execution] 📦 Using mock execution plan");
 
   const components = architecture.nodes.map((node: { label: string; type: string }) => ({
     name: node.label,

@@ -28,6 +28,7 @@ export interface ManualDesignContextInput {
   metadata?: {
     title?: string;
     prompt?: string;
+    projectRequirements?: string;
   };
 }
 
@@ -53,6 +54,7 @@ function countByType(nodes: ManualDesignNode[]) {
     const key = n.type.toLowerCase();
     counts[key] = (counts[key] || 0) + 1;
   }
+  console.log("📊 Component counts by type:", counts);
   return counts;
 }
 
@@ -64,7 +66,8 @@ function summarizeComponents(nodes: ManualDesignNode[]) {
     .map(([type, count]) => `${count} ${labelForType(type)}${count > 1 ? "s" : ""}`)
     .join(", ");
 
-  return `The canvas currently contains ${parts}.`;
+  const totalCount = nodes.length;
+  return `The canvas contains exactly ${totalCount} component${totalCount > 1 ? 's' : ''}: ${parts}.`;
 }
 
 function summarizeConnections(nodes: ManualDesignNode[], edges: ManualDesignEdge[]) {
@@ -78,6 +81,10 @@ export function buildManualDesignContext(input: ManualDesignContextInput): Manua
   const counts = countByType(nodes);
 
   const parts: string[] = [];
+
+  if (metadata?.projectRequirements) {
+    parts.push(`Project Requirements: ${metadata.projectRequirements}`);
+  }
 
   if (metadata?.title) {
     parts.push(`This manual design is titled: ${metadata.title}.`);
@@ -106,12 +113,28 @@ export function buildManualDesignContext(input: ManualDesignContextInput): Manua
     constraints.push("A backend exists without a database.");
   }
 
+  if ((counts.database || 0) === 1 && (counts.backend || 0) > 0) {
+    constraints.push("Only one database instance - single point of failure for data persistence.");
+  }
+
+  if ((counts.database || 0) > 1) {
+    constraints.push(`${counts.database} database instances present - ensure replication strategy is planned.`);
+  }
+
   if ((counts.database || 0) > 0 && (counts.backend || 0) === 0) {
     constraints.push("A database exists without a backend service.");
   }
 
   if ((counts.loadbalancer || 0) > 0 && (counts.backend || 0) < 2) {
     constraints.push("A load balancer is present but only one backend is defined.");
+  }
+
+  if ((counts.backend || 0) === 1 && nodes.length > 3) {
+    constraints.push("Single backend instance - consider adding redundancy for availability.");
+  }
+
+  if ((counts.backend || 0) > 1) {
+    constraints.push(`${counts.backend} backend instances present - good for redundancy.`);
   }
 
   if ((counts.apigateway || 0) > 0 && (counts.backend || 0) === 0) {
@@ -136,8 +159,8 @@ export function buildManualDesignContext(input: ManualDesignContextInput): Manua
     priorities.push("Avoid over-engineering unless there is clear scale or security need.");
   }
 
-  if ((counts.backend || 0) === 1 && (counts.database || 0) === 1) {
-    priorities.push("Improve reliability without a major redesign.");
+  if ((counts.database || 0) > 1 || (counts.backend || 0) > 1) {
+    priorities.push("Ensure proper orchestration and failover mechanisms for redundant components.");
   }
 
   if (priorities.length === 0) {
@@ -149,21 +172,24 @@ export function buildManualDesignContext(input: ManualDesignContextInput): Manua
 
 export function renderManualDesignContextAsText(context: ManualDesignContext): string {
   const lines: string[] = [];
+  lines.push("CURRENT ARCHITECTURE:");
   lines.push(context.systemBrief);
 
   if (context.constraints.length > 0) {
-    lines.push("\nConstraints:");
+    lines.push("\nCONSTRAINTS:");
     for (const c of context.constraints) {
       lines.push(`- ${c}`);
     }
   }
 
   if (context.priorities.length > 0) {
-    lines.push("\nPriorities:");
+    lines.push("\nPRIORITIES:");
     for (const p of context.priorities) {
       lines.push(`- ${p}`);
     }
   }
+
+  lines.push("\nIMPORTANT: Analyze ONLY what is described above. The component counts are accurate and current.");
 
   return lines.join("\n");
 }

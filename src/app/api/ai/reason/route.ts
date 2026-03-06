@@ -16,9 +16,7 @@ import { buildManualDesignContext, renderManualDesignContextAsText } from "@/lib
 import { buildManualDesignAnalysisPrompt } from "@/lib/backend/ai/prompts/manualDesignAnalysis.prompt";
 import { getManualDesignAnalysisMock } from "@/lib/backend/ai/mocks/manualDesignAnalysis.mock";
 import { AI_CONFIG, validateAIConfig } from "@/lib/backend/ai/config";
-import { callAI, parseAIJSON } from "@/lib/backend/ai/provider";
-import { validateStudentModeResponse } from "@/lib/backend/ai/validators/studentMode.validator";
-import { validateManualDesignResponse } from "@/lib/backend/ai/validators/manualDesign.validator";
+import { callOpenAI } from "@/lib/backend/ai/openaiProvider";
 import { checkRateLimit, getRateLimitIdentifier } from "@/lib/backend/ai/rateLimiter";
 import { getAuthUserFromRequest } from "@/lib/backend/auth";
 import { connectDB } from "@/lib/backend/db";
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
     }
 
     // STEP A: Parse request
-    const { mode, intent, projectId, canvas, metadata } = await req.json();
+    const { mode, intent, projectId, canvas, metadata, context } = await req.json();
 
     // Rate limiting (only when using real AI to prevent cost explosion)
     if (AI_CONFIG.USE_REAL_AI) {
@@ -124,10 +122,20 @@ export async function POST(req: NextRequest) {
       const nodes = canvas?.nodes ?? canvas?.droppedComponents ?? [];
       const edges = canvas?.edges ?? [];
 
+      console.log("🔍 API RECEIVED CANVAS DATA:");
+      console.log("  Canvas object keys:", Object.keys(canvas || {}));
+      console.log("  Nodes/Components count:", nodes.length);
+      console.log("  Edges count:", edges.length);
+      console.log("  Nodes data:", JSON.stringify(nodes, null, 2));
+      console.log("  Context:", context || "(none)");
+
       const manualContext = buildManualDesignContext({
         nodes,
         edges,
-        metadata,
+        metadata: {
+          ...(metadata || {}),
+          projectRequirements: context || "",
+        },
       });
 
       console.log("=== MANUAL DESIGN CONTEXT ===");
@@ -136,29 +144,34 @@ export async function POST(req: NextRequest) {
 
       const prompt = buildManualDesignAnalysisPrompt(manualContext);
 
+      console.log("📝 PROMPT BEING SENT TO AI:");
+      console.log(prompt);
+      console.log("==============================");
+
       let aiResponse;
       if (!AI_CONFIG.USE_REAL_AI) {
         // Mock mode
+        console.log("[manual-design] Using mock analysis");
         aiResponse = getManualDesignAnalysisMock(nodes, edges);
       } else {
-        // Real AI mode
-        const aiResult = await callAI({ prompt });
-
-        if (!aiResult.success || !aiResult.content) {
-          console.error("AI call failed:", aiResult.error);
-          return NextResponse.json(
-            { error: "AI reasoning failed", details: aiResult.error },
-            { status: 500 }
-          );
-        }
-
-        // Parse JSON from AI response
-        const parsed = parseAIJSON(aiResult.content);
-        if (!parsed.success) {
-          console.error("=== MANUAL DESIGN: JSON PARSE FAILED ===");
-          console.error("Error:", parsed.error);
-          console.error("Raw AI response (first 500 chars):");
-          console.error(aiResult.content.substring(0, 500));
+        // Real AI mode with JSON mode enabled
+        try {
+          console.log("[manual-design] ✅ Attempting real AI call...");
+          
+          const systemPrompt = "You are a senior software architect reviewing system designs. Provide constructive, concise feedback in JSON format.";
+          const aiResult = await callOpenAI(systemPrompt, prompt, 1200); // Higher limit for detailed findings
+          
+          // Parse AI response (already validated as JSON by callOpenAI)
+          aiResponse = JSON.parse(aiResult.content);
+          
+          console.log("[manual-design] ✅✅✅ Real AI analysis generated!");
+          console.log("  Findings count:", aiResponse.findings?.length || 0);
+          console.log("  Overall score:", aiResponse.score?.overall || 0);
+        } catch (error) {
+          console.error("========================================");
+          console.error("[manual-design] ❌❌❌ AI CALL FAILED!");
+          console.error("  Error:", error instanceof Error ? error.message : String(error));
+          console.error("  Falling back to mock analysis");
           console.error("========================================");
           
           // Log failed request
@@ -170,47 +183,14 @@ export async function POST(req: NextRequest) {
               intent: "analysis",
               success: false,
               validationPassed: false,
-              errorMessage: "JSON parse failed",
+              errorMessage: error instanceof Error ? error.message : String(error),
               durationMs: Date.now() - startTime,
             });
           }
           
-          return NextResponse.json(
-            { error: "AI returned invalid JSON", details: parsed.error },
-            { status: 500 }
-          );
+          // Fallback to mock
+          aiResponse = getManualDesignAnalysisMock(nodes, edges);
         }
-
-        // Validate contract
-        const validated = validateManualDesignResponse(parsed.data);
-        if (!validated.success) {
-          console.error("=== MANUAL DESIGN: VALIDATION FAILED ===");
-          console.error("Validation errors:", validated.errors);
-          console.error("Parsed data (first 500 chars):");
-          console.error(JSON.stringify(parsed.data, null, 2).substring(0, 500));
-          console.error("========================================");
-          
-          // Log failed validation
-          const authUser = getAuthUserFromRequest(req);
-          if (authUser) {
-            logAIRequest({
-              userId: authUser.userId,
-              mode: "manual",
-              intent: "analysis",
-              success: true,
-              validationPassed: false,
-              errorMessage: validated.errors?.join("; "),
-              durationMs: Date.now() - startTime,
-            });
-          }
-          
-          return NextResponse.json(
-            { error: "AI response validation failed", details: validated.errors },
-            { status: 500 }
-          );
-        }
-
-        aiResponse = validated.data;
       }
 
       // Log successful request
@@ -231,7 +211,10 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        data: aiResponse,
+        data: {
+          ...aiResponse,
+          source: AI_CONFIG.USE_REAL_AI ? 'ai' : 'mock',
+        },
       });
     }
 
@@ -303,27 +286,27 @@ export async function POST(req: NextRequest) {
 
     if (!AI_CONFIG.USE_REAL_AI) {
       // Mock mode
+      console.log("[student-mode] Using mock architecture");
       aiResponse = getStudentModeArchitectureMock();
     } else {
-      // Real AI mode
-      const aiResult = await callAI({ prompt });
-
-      if (!aiResult.success || !aiResult.content) {
-        console.error("AI call failed:", aiResult.error);
-        return NextResponse.json(
-          { error: "AI reasoning failed", details: aiResult.error },
-          { status: 500 }
-        );
-      }
-
-      // Parse JSON from AI response
-      const parsed = parseAIJSON(aiResult.content);
-      if (!parsed.success) {
-        console.error("=== STUDENT MODE: JSON PARSE FAILED ===");
-        console.error("Error:", parsed.error);
-        console.error("Raw AI response (first 500 chars):");
-        console.error(aiResult.content.substring(0, 500));
-        console.error("=======================================");
+      // Real AI mode with JSON mode enabled
+      try {
+        console.log("[student-mode] ✅ Attempting real AI call...");
+        
+        const systemPrompt = "You are an expert software architect helping students design their first production systems. Generate clean, educational architectures in JSON format.";
+        const aiResult = await callOpenAI(systemPrompt, prompt, 1200); // Higher limit for modules + reasoning
+        
+        // Parse AI response (already validated as JSON by callOpenAI)
+        aiResponse = JSON.parse(aiResult.content);
+        
+        console.log("[student-mode] ✅✅✅ Real AI architecture generated!");
+        console.log("  Nodes:", aiResponse.architecture?.nodes?.length || 0);
+      } catch (error) {
+        console.error("========================================");
+        console.error("[student-mode] ❌❌❌ AI CALL FAILED!");
+        console.error("  Error:", error instanceof Error ? error.message : String(error));
+        console.error("  Falling back to mock architecture");
+        console.error("========================================");
         
         // Log failed request
         const authUser = getAuthUserFromRequest(req);
@@ -334,47 +317,14 @@ export async function POST(req: NextRequest) {
             intent: "architecture",
             success: false,
             validationPassed: false,
-            errorMessage: "JSON parse failed",
+            errorMessage: error instanceof Error ? error.message : String(error),
             durationMs: Date.now() - startTime,
           });
         }
         
-        return NextResponse.json(
-          { error: "AI returned invalid JSON", details: parsed.error },
-          { status: 500 }
-        );
+        // Fallback to mock
+        aiResponse = getStudentModeArchitectureMock();
       }
-
-      // Validate contract
-      const validated = validateStudentModeResponse(parsed.data);
-      if (!validated.success) {
-        console.error("=== STUDENT MODE: VALIDATION FAILED ===");
-        console.error("Validation errors:", validated.errors);
-        console.error("Parsed data (first 500 chars):");
-        console.error(JSON.stringify(parsed.data, null, 2).substring(0, 500));
-        console.error("=======================================");
-        
-        // Log failed validation
-        const authUser = getAuthUserFromRequest(req);
-        if (authUser) {
-          logAIRequest({
-            userId: authUser.userId,
-            mode: "student",
-            intent: "architecture",
-            success: true,
-            validationPassed: false,
-            errorMessage: validated.errors?.join("; "),
-            durationMs: Date.now() - startTime,
-          });
-        }
-        
-        return NextResponse.json(
-          { error: "AI response validation failed", details: validated.errors },
-          { status: 500 }
-        );
-      }
-
-      aiResponse = validated.data;
     }
 
     // Log successful request

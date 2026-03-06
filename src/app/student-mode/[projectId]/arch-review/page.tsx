@@ -319,15 +319,26 @@ export default function ArchReviewPage() {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [score, setScore] = useState(100);
     const [baseScore, setBaseScore] = useState(100);
+    const [aiScore, setAiScore] = useState<any>(null);
+    const [aiSource, setAiSource] = useState<"ai" | "mock">("mock");
     const [activeIdx, setActiveIdx] = useState(0);
     const [allDone, setAllDone] = useState(false);
 
     useEffect(() => {
         async function load() {
             try {
-                const reasonRes = await fetch(`/api/student-mode/reasoning?projectId=${projectId}`);
+                const [reasonRes, scoreRes] = await Promise.all([
+                    fetch(`/api/student-mode/reasoning?projectId=${projectId}`),
+                    fetch(`/api/student-mode/score?projectId=${projectId}`),
+                ]);
+                
                 const reasonData = await reasonRes.json();
+                const scoreData = await scoreRes.json();
                 const answers = reasonData?.answers || {};
+
+                // Store AI score for display
+                setAiScore(scoreData);
+                setAiSource(scoreData.source || "mock");
 
                 // ── Read student's OWN build from localStorage ──────────────
                 const buildData = loadBuild(projectId);
@@ -437,14 +448,19 @@ export default function ArchReviewPage() {
             {/* ── Sticky header ── */}
             <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-xl border-b border-zinc-800 px-6 py-4">
                 <div className="max-w-3xl mx-auto flex items-center justify-between gap-6 flex-wrap">
-                    <div>
-                        <h1 className="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
-                            Architecture Review
-                        </h1>
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                            The algorithm found {challenges.length} issue{challenges.length > 1 ? "s" : ""} in your design —
-                            you must decide what to do about each one.
-                        </p>
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
+                                    Architecture Review
+                                </h1>
+                                <AIStatusBadge source={aiSource} />
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                                The algorithm found {challenges.length} issue{challenges.length > 1 ? "s" : ""} in your design —
+                                you must decide what to do about each one.
+                            </p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                         {/* Progress indicator */}

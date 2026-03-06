@@ -32,7 +32,7 @@ export function generateReadinessReport(
   const checks: Check[] = [];
 
   // Authentication & Authorization
-  const hasAuth = nodes.some(n => n.type === 'auth' || n.label.toLowerCase().includes('auth'));
+  const hasAuth = nodes.some(n => n.type === 'auth' || n.label?.toLowerCase().includes('auth'));
   const requiresAuth = proposal?.features?.some(f => 
     f.includes('payment') || f.includes('user') || f.includes('profile')
   );
@@ -128,8 +128,8 @@ export function generateReadinessReport(
 
   // Observability
   const hasMonitoring = nodes.some(n => 
-    n.type === 'monitoring' || n.label.toLowerCase().includes('monitor') ||
-    n.label.toLowerCase().includes('datadog') || n.label.toLowerCase().includes('prometheus')
+    n.type === 'monitoring' || n.label?.toLowerCase().includes('monitor') ||
+    n.label?.toLowerCase().includes('datadog') || n.label?.toLowerCase().includes('prometheus')
   );
   
   if (!hasMonitoring) {
@@ -164,8 +164,8 @@ export function generateReadinessReport(
     f.includes('payment') || f.includes('checkout')
   );
   const paymentNodes = nodes.filter(n => 
-    n.label.toLowerCase().includes('stripe') || 
-    n.label.toLowerCase().includes('payment')
+    n.label?.toLowerCase().includes('stripe') || 
+    n.label?.toLowerCase().includes('payment')
   );
   
   if (hasPayment && paymentNodes.length === 1) {

@@ -53,9 +53,17 @@ export async function GET(req: NextRequest) {
   }
   const context = getProjectContext(projectId);
 
+  console.log("========================================");
+  console.log("[student-cost] COST ESTIMATION REQUEST");
+  console.log("  Project ID:", projectId);
+  console.log("  Nodes count:", architecture.nodes?.length);
+  console.log("  USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+  console.log("  API Key exists:", !!AI_CONFIG.OPENAI_API_KEY);
+  console.log("========================================");
+
   if (AI_CONFIG.USE_REAL_AI) {
     try {
-      console.log("[student-cost] Using real AI for cost estimation");
+      console.log("[student-cost] ✅ Attempting real AI call...");
       
       const projectDef = projectDefinitionStore.get(projectId);
       const projectContext = projectDef 
@@ -75,19 +83,26 @@ export async function GET(req: NextRequest) {
       const aiResult = await callOpenAI(systemPrompt, prompt);
       const aiCost = JSON.parse(aiResult.content);
       
-      console.log("[student-cost] Real AI cost estimate generated");
+      console.log("[student-cost] ✅✅✅ Real AI cost estimate generated!");
+      console.log("  Monthly cost:", aiCost.monthlyCostUSD);
       
       return NextResponse.json({
         ...aiCost,
         source: "ai",
       });
     } catch (error) {
-      console.error("[student-cost] AI failed, using fallback:", error);
+      console.error("========================================");
+      console.error("[student-cost] ❌❌❌ AI CALL FAILED!");
+      console.error("  Error:", error instanceof Error ? error.message : String(error));
+      console.error("  Falling back to mock estimate");
+      console.error("========================================");
       // Fall through to mock
     }
+  } else {
+    console.log("[student-cost] ⚠️ USE_REAL_AI is FALSE, using mock");
   }
 
-  console.log("[student-cost] Using mock cost estimate");
+  console.log("[student-cost] 📦 Using mock cost estimate");
   
   const mockEstimate = estimateCost(
     { nodes: architecture.nodes, edges: architecture.edges || [] },

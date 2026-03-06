@@ -17,13 +17,15 @@ const AiDrawer = forwardRef<
     onClose: () => void;
     getCanvasJson: () => any;
     onAddSuggestion: (action: any) => void;
+    projectContext?: string;
   }
->(({ isOpen, onClose, getCanvasJson, onAddSuggestion }, ref) => {
+>(({ isOpen, onClose, getCanvasJson, onAddSuggestion, projectContext }, ref) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<{
     score: { overall: number; security: number; performance: number; cost: number };
     findings: Finding[];
     assumptions: string[];
+    source?: 'ai' | 'mock';
   } | null>(null);
   
   // Typing animation state
@@ -34,10 +36,17 @@ const AiDrawer = forwardRef<
     setLoading(true);
     setTypingStage('analyzing');
     setVisibleSuggestions(0);
+    setData(null); // Clear previous analysis
     
     try {
       const canvas = getCanvasJson ? getCanvasJson() : { nodes: [] };
       const token = localStorage.getItem("token");
+      
+      console.log("🎨 CANVAS DATA BEING SENT TO AI:");
+      console.log("  Components count:", canvas.droppedComponents?.length || canvas.nodes?.length || 0);
+      console.log("  Edges count:", canvas.edges?.length || 0);
+      console.log("  Full canvas data:", canvas);
+      console.log("  Project context:", projectContext || "(none)");
       
       const res = await fetch("/api/ai/reason", {
         method: "POST",
@@ -49,10 +58,14 @@ const AiDrawer = forwardRef<
           mode: "manual",
           intent: "analysis",
           canvas,
+          context: projectContext || "",
+          timestamp: Date.now(), // Cache buster
         }),
       });
       const json = await res.json();
       setData(json.data ?? null);
+      
+      console.log(json.data?.source === 'ai' ? '✅ Real AI analysis received' : '⚠️ Mock analysis received');
       
       // Start typing animation
       setTimeout(() => {
@@ -127,8 +140,16 @@ const AiDrawer = forwardRef<
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <span className="text-2xl">🤖</span>
                     AI Analysis
+                    {data?.source === 'ai' && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-medium">
+                        <span className="inline-flex w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                        Real AI
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-sm text-zinc-500 mt-1">Architecture insights & suggestions</p>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    {projectContext ? `Analyzing against: ${projectContext.slice(0, 50)}${projectContext.length > 50 ? '...' : ''}` : 'Architecture insights & suggestions'}
+                  </p>
                 </div>
                 <button
                   onClick={() => {

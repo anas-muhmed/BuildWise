@@ -6,7 +6,8 @@ export async function GET(req: NextRequest) {
 
   if (!projectId) {
     console.warn("[reasoning] GET request missing projectId");
-    return NextResponse.json({ error: "projectId required" }, { status: 400 });
+    // Return default state instead of 400 error
+    return NextResponse.json({ projectId: null, index: 0, answers: {} });
   }
 
   let state = reasoningStore.get(projectId);

@@ -25,44 +25,23 @@ export async function POST(req: NextRequest) {
 
     const definition = projectDefinitionStore.get(projectId);
 
+    // Use definition or fallback to defaults
+    const effectiveDefinition = definition || {
+      name: "Test Project",
+      goal: "Test application for architecture generation",
+      audience: "Students and learners",
+    };
+
     if (!definition) {
       console.log(`No definition found for ${projectId}, using defaults`);
-      const defaultDefinition = {
-        name: "Test Project",
-        goal: "Test application for architecture generation",
-        audience: "Students and learners",
-      };
-
-      const aiContext = buildStudentModeContext({
-        definition: defaultDefinition,
-        reasoning: reasoning.answers,
-      });
-
-      console.log("=== AI CONTEXT (Student Mode) ===");
-      console.log(renderContextAsText(aiContext));
-      console.log("=================================");
-
-      const mockResponse = getStudentModeArchitectureMock();
-      const architecture = mockResponse.architecture;
-
-      architectureStore.set(projectId, {
-        baseArchitecture: architecture,
-        activeDecisions: [],
-        architecture: architecture,
-      });
-
-      return NextResponse.json({
-        ...mockResponse,
-        source: "mock",
-      });
     }
 
-    // Build AI context from student inputs
+    // Build AI context from student inputs (or defaults)
     const aiContext = buildStudentModeContext({
       definition: {
-        name: definition.name,
-        goal: definition.goal,
-        audience: definition.audience,
+        name: effectiveDefinition.name,
+        goal: effectiveDefinition.goal,
+        audience: effectiveDefinition.audience,
       },
       reasoning: reasoning.answers,
     });
@@ -72,9 +51,17 @@ export async function POST(req: NextRequest) {
     console.log(renderContextAsText(aiContext));
     console.log("=================================");
 
+    console.log("========================================");
+    console.log("[student-materialize] AI CONFIG CHECK:");
+    console.log("  USE_REAL_AI:", AI_CONFIG.USE_REAL_AI);
+    console.log("  API Key exists:", !!AI_CONFIG.OPENAI_API_KEY);
+    console.log("  API Key length:", AI_CONFIG.OPENAI_API_KEY?.length || 0);
+    console.log("  Model:", AI_CONFIG.OPENAI_MODEL);
+    console.log("========================================");
+
     if (AI_CONFIG.USE_REAL_AI) {
       try {
-        console.log("[student-materialize] Using real AI for architecture generation");
+        console.log("[student-materialize] ✅ Attempting real AI call...");
         
         const prompt = buildStudentModeArchitecturePrompt(aiContext);
         const systemPrompt = "You are an expert software architect helping students design their first production systems. Generate clean, educational architectures.";
@@ -91,19 +78,26 @@ export async function POST(req: NextRequest) {
           architecture: architecture,
         });
 
-        console.log("[student-materialize] Real AI architecture generated successfully");
+        console.log("[student-materialize] ✅✅✅ Real AI architecture generated successfully!");
+        console.log("[student-materialize] Nodes count:", architecture.nodes?.length);
         
         return NextResponse.json({
           ...aiResponse,
           source: "ai",
         });
       } catch (error) {
-        console.error("[student-materialize] AI failed, using fallback:", error);
+        console.error("========================================");
+        console.error("[student-materialize] ❌❌❌ AI CALL FAILED!");
+        console.error("[student-materialize] Error:", error);
+        console.error("[student-materialize] Error message:", error instanceof Error ? error.message : String(error));
+        console.error("========================================");
         // Fall through to mock
       }
+    } else {
+      console.log("[student-materialize] ⚠️ USE_REAL_AI is FALSE, skipping AI call");
     }
 
-    console.log("[student-materialize] Using mock architecture");
+    console.log("[student-materialize] 📦 Using mock architecture (fallback)");
     const mockResponse = getStudentModeArchitectureMock();
     const architecture = mockResponse.architecture;
 

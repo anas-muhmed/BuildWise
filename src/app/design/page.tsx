@@ -76,6 +76,8 @@ function DesignPageInner() {
   // AI functionality state
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const aiDrawerRef = useRef<{ analyze: () => void } | null>(null);
+  const [projectContext, setProjectContext] = useState("");
+  const [showContextModal, setShowContextModal] = useState(false);
 
   // overlay + precise pointer
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -378,7 +380,19 @@ function DesignPageInner() {
           {/* AI Analysis Section */}
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowContextModal(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors font-medium text-sm text-zinc-300 border border-zinc-700 hover:bg-zinc-700 cursor-pointer"
+              title="Describe your project requirements"
+            >
+              📝 {projectContext ? 'Edit' : 'Add'} Requirements
+            </button>
+            <button
               onClick={() => {
+                if (!projectContext.trim()) {
+                  alert("Please describe your project requirements first!");
+                  setShowContextModal(true);
+                  return;
+                }
                 setIsAiDrawerOpen(true);
                 // Trigger analysis when drawer opens
                 setTimeout(() => {
@@ -388,6 +402,7 @@ function DesignPageInner() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg transition-opacity font-medium text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/20 cursor-pointer"
             >
               🤖 AI Analysis
+              <span className="inline-flex w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Real AI" />
             </button>
           </div>
 
@@ -447,6 +462,7 @@ function DesignPageInner() {
         onClose={() => setIsAiDrawerOpen(false)}
         onAddSuggestion={onAddSuggestion}
         getCanvasJson={getCanvasJson}
+        projectContext={projectContext}
       />
 
       <DndContext
@@ -502,6 +518,44 @@ function DesignPageInner() {
         onSave={saveConfig}
         blockTitle={editingBlock?.type}
       />
+
+      {/* Project Requirements Modal */}
+      {showContextModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-2xl mx-4">
+            <h2 className="text-xl font-bold text-white mb-2">Project Requirements</h2>
+            <p className="text-sm text-zinc-400 mb-4">
+              Describe your project so AI can analyze your architecture against real requirements and provide meaningful feedback.
+            </p>
+            <textarea
+              value={projectContext}
+              onChange={(e) => setProjectContext(e.target.value)}
+              placeholder="e.g., Building a food delivery platform with real-time order tracking, payment processing, and restaurant management. Expected to handle 10,000+ daily active users with peak traffic during lunch/dinner hours. Must support multiple payment gateways and real-time driver location tracking."
+              className="w-full h-48 p-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+              autoFocus
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  if (projectContext.trim()) {
+                    setShowContextModal(false);
+                  }
+                }}
+                disabled={!projectContext.trim()}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                Save & Continue
+              </button>
+              <button
+                onClick={() => setShowContextModal(false)}
+                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
