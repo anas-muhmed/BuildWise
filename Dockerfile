@@ -8,7 +8,7 @@ COPY package.json package-lock.json* ./
 # Install dependencies
 # Note: All dependencies are pure JavaScript, no native compilation needed
 # Using --legacy-peer-deps to handle React 19 compatibility
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
