@@ -49,6 +49,10 @@ services:
       # App
       APP_URL: ${APP_URL:-http://localhost:3000}
       
+      # AI Configuration
+      USE_REAL_AI: ${USE_REAL_AI:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      
       # Setup (disable in production)
       SETUP_MODE: ${SETUP_MODE:-false}
       SETUP_SECRET: ${SETUP_SECRET:-}
