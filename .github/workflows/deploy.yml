@@ -1,0 +1,33 @@
+name: Build & Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to DigitalOcean VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /opt/buildwise
+            git pull origin master
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" > .env.local
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.local
+            echo "JWT_EXPIRES_IN=7d" >> .env.local
+            echo "USE_REAL_AI=${{ secrets.USE_REAL_AI }}" >> .env.local
+            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env.local
+            docker compose down
+            docker compose up --build -d
+            echo "✅ Deployment complete"
