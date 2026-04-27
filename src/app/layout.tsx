@@ -1,6 +1,6 @@
 import "./globals.css";
 import { AuthProvider } from "@/lib/authContext";
-import GlobalAuthModal from "@/components/GlobalAuthModal";
+import { ThemeProvider } from "@/lib/themeContext";
 
 export const metadata = {
   title: 'BuildWise - Architecture Design Platform',
@@ -13,11 +13,25 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const theme = localStorage.getItem('buildwise-theme') || 'dark';
+                document.documentElement.classList.add(theme);
+                document.documentElement.setAttribute('data-theme', theme);
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
+      <body suppressHydrationWarning>
         <AuthProvider>
-          {children}
-          <GlobalAuthModal />
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>
