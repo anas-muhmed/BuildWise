@@ -39,3 +39,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Office temp files
+~$*
+*.pptx
+
+# Stray images / scratch files
+ref_img_*.png
+ref_img_*.jpg
+
+# Junk files from bad shell commands
+userId)
+$HOME/
+-p/
+
+# Local scripts / secrets
+generate-secrets.js
+test-env.js
+cleanup.ps1
